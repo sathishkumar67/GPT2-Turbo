@@ -231,7 +231,7 @@ class GPT(nn.Module):
                 - `vocab_size`: The size of the vocabulary.
                 - `block_size`: The maximum block size of the input tensor.
         """
-        B, T = idx.size()
+        _, T = idx.size()
         assert T <= self.config.block_size, f"Cannot forward sequence of length {T}, block size is only {self.config.block_size}"
         # forward the token and posisition embeddings
         pos = torch.arange(0, T, dtype=torch.long, device=idx.device) # shape (T)
