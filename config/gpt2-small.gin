@@ -14,3 +14,5 @@ GPTConfig.training_backend = "nccl"
 GPTConfig.device = "cuda"
 GPTConfig.model_name = "gpt2"
 GPTConfig.clip_grad_norm_val = 1.0
+GPTConfig.base_theta = 10000.0
+GPTConfig.scale_factor = 1.0
