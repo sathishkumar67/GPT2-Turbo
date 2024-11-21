@@ -226,6 +226,7 @@ class GPT(nn.Module):
         logits = self.lm_head(x) # (B, T, vocab_size)
         
         loss = None
+        # compute the loss if targets are provided
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
         
