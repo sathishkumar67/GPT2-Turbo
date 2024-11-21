@@ -13,21 +13,51 @@ from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
 
+# checking if need to download the dataset and model files
+DO_DATASET_DOWNLOAD = True
+DO_MODEL_DOWNLOAD = False  
 
-hf_hub_download(repo_id="pt-sk/GPT2_Finetune_dataset", filename="file_3.npy", repo_type="dataset", local_dir="/kaggle/working")
-# hf_hub_download(repo_id="pt-sk/GPT2-small_Finetune", filename="2/checkpoint.pth", repo_type="model", local_dir="/kaggle/working")
+# preparing the dataset
+DATA_REPO_ID = ""
+DATA_REPO_TYPE = ""
+DATA_FILENAME = ""
+
+# preparing the model
+MODEL_REPO_ID = ""
+MODEL_REPO_TYPE = ""
+MODEL_FILENAME = ""
+
+# checkpoint load flag to load the model and optimizer states if needed
+IF_CHECKPOINT_LOAD = False
+
+# local directory to save the downloaded files
+LOCAL_DIR = "/kaggle/working"
+
+# Download the dataset and model files if needed
+if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
+    print("Downloading dataset files....")
+    hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+    print("Downloading model files....")
+    hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
+elif DO_DATASET_DOWNLOAD:
+    print("Downloading dataset files....")
+    hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+elif DO_MODEL_DOWNLOAD:
+    print("Downloading model files....")
+    hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
 
 
-tokens = np.load("/kaggle/working/file_3.npy")
-tokens = tokens[:107808979]
+
+# Load the dataset
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)
 print(f"Number of tokens: {len(tokens)}")
 
-
-
+# Load the model configuration
 gin.parse_config_file("config/gpt2-small.gin")
 config = GPTConfig()
+print(config)
 
-
+# Set the seed for reproducibility
 np.random.seed(config.seed)
 torch.manual_seed(config.seed)
 torch.cuda.manual_seed(config.seed)
