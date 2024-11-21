@@ -164,7 +164,7 @@ class Block(nn.Module):
         return x
 
 class GPT(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__()
 
         self.config = config
@@ -182,8 +182,12 @@ class GPT(nn.Module):
         self.transformer.wte.weight = self.lm_head.weight
 
         # precompute the frequencies for the rotary embeddings
-        self.freqs_cis = precompute_freqs_cis(config.base_theta, config.scale_factor, config.n_embd)
-    def forward(self, idx, targets=None):
+        self.freqs_cis = precompute_freqs_cis(dim=self.config.head_dim,
+                                              end=self.config.block_size,
+                                              theta=self.config.base_theta,
+                                              scale_factor=self.config.scale_factor,
+                                              )
+    def forward(self, idx, targets=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes the forward pass of the GPT model.
 
