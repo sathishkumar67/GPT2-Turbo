@@ -34,7 +34,6 @@ class GPTConfig:
     def __post_init__(self):
         self.head_dim = self.n_embd // self.n_head
         self.intermediate_size = 4 * self.n_embd
-        print(f"fused optimizer usage: {self.fused_optimizer}")
 
 
 class RMSNorm(torch.nn.Module):
