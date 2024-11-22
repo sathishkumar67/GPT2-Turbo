@@ -12,6 +12,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # checking if need to download the dataset and model files
@@ -36,35 +38,27 @@ LOCAL_DIR = "/kaggle/working"
 
 # Download the dataset and model files if needed
 if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
-    print("Downloading dataset files....")
     hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
-    print("Downloading model files....")
     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
 
 elif DO_DATASET_DOWNLOAD:
-    print("Downloading dataset files....")
     hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
 
 elif DO_MODEL_DOWNLOAD:
-    print("Downloading model files....")
     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
 
 
 # Load the dataset
-print("Loading dataset....")
 tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)
 print(f"Number of tokens: {len(tokens)}")
 
 
 # Load the model configuration
-print("Loading model configuration....")
 gin.parse_config_file("config/gpt2-small.gin")
 config = GPTConfig()
-print(config)
 
 
 # Set the seed for reproducibility
-print("Setting seed for reproducibility....")
 np.random.seed(config.seed)
 torch.manual_seed(config.seed)
 torch.cuda.manual_seed(config.seed)
@@ -73,10 +67,8 @@ torch.cuda.manual_seed_all(config.seed)
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
-    print("Loading checkpoint....")
     checkpoint = torch.load("/kaggle/working/2/checkpoint.pth")
-    print("Checkpoint loaded....")
-
+    
 
 
 def trainer(rank, world_size):
@@ -89,15 +81,13 @@ def trainer(rank, world_size):
     device = torch.device(config.device, rank)
 
     # Define Model and 
-    print("Creating model....")
     model = GPT(config)
     
     if LOAD_CHECKPOINT:
         # Load the model state
         print("Loading model state....")
         model.load_state_dict(checkpoint["model_state_dict"])
-        print("Model state loaded....")
-    
+        
     model.to(config.dtype).to(device)
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
 
@@ -108,8 +98,7 @@ def trainer(rank, world_size):
         # Load the optimizer state
         print("Loading optimizer state....")
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        print("Optimizer state loaded....")
-
+        
 
     # Create DataLoader
     dataset = TokenDataset(config, tokens)
