@@ -96,16 +96,16 @@ def trainer(rank, world_size):
     # Create DataLoader
     dataset = TokenDataset(config, tokens)
     # Use DistributedSampler to partition data among distributed processes
-    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"cuda:{rank}", num_workers=1, prefetch_factor=2)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"cuda:{rank}", num_workers=1, prefetch_factor=4)
     print(f"dataloader size: {len(dataloader)}")
 
 
     # Training Loop
     model.train()
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
-        sampler.set_epoch(epoch)  # Shuffle data per epoch for 
+        sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         
         for batch, (inputs, labels) in enumerate(dataloader):
             start_time = time.time()
