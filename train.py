@@ -98,7 +98,7 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device="cpu")
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True)
     print(f"dataloader size: {len(dataloader)}")
 
 
