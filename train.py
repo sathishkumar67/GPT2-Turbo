@@ -58,16 +58,9 @@ gin.parse_config_file("config/gpt2-small.gin")
 config = GPTConfig()
 
 
-# Set the seed for reproducibility
-np.random.seed(config.seed)
-torch.manual_seed(config.seed)
-torch.cuda.manual_seed(config.seed)
-torch.cuda.manual_seed_all(config.seed)
-
-
 if LOAD_CHECKPOINT:
     # load the checkpoint
-    checkpoint = torch.load("/kaggle/working/2/checkpoint.pth")
+    checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}")
     
 
 
@@ -105,7 +98,7 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True)
     print(f"dataloader size: {len(dataloader)}")
 
 
