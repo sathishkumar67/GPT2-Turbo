@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import gin
+import inspect
 from typing import Tuple
 import torch
 import torch.nn as nn
@@ -30,7 +31,8 @@ class GPTConfig:
     weight_decay: float
     eps: float
     betas: Tuple[float, float]
-    
+    fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
+
     # seed
     seed: int
     
@@ -187,6 +189,8 @@ class GPT(nn.Module):
                                               theta=self.config.base_theta,
                                               scale_factor=self.config.scale_factor,
                                               )
+        self.register_buffer("freqs_cis", self.freqs_cis, persistent=False)
+
     def forward(self, idx, targets=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes the forward pass of the GPT model.
