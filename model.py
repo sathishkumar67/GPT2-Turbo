@@ -179,7 +179,6 @@ class GPT(nn.Module):
                                               theta=self.config.base_theta,
                                               scale_factor=self.config.scale_factor,
                                               )
-        self.register_buffer("freqs_cis", self.freqs_cis, persistent=False)
 
     def forward(self, idx, targets=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
