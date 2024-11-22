@@ -34,6 +34,7 @@ class GPTConfig:
     def __post_init__(self):
         self.head_dim = self.n_embd // self.n_head
         self.intermediate_size = 4 * self.n_embd
+        print(f"fused optimizer usage: {self.fused_optimizer}")
 
 
 class RMSNorm(torch.nn.Module):
@@ -74,8 +75,7 @@ class RMSNorm(torch.nn.Module):
         Returns:
             The RMSNorm of the input tensor multiplied by a learnable scale factor.
         """
-        output = self._norm(x.float()).type_as(x)
-        return output * self.weight
+        return self._norm(x.float()).type_as(x) * self.weight
     
 
 class CausalSelfAttention(nn.Module):
