@@ -19,9 +19,9 @@ DO_DATASET_DOWNLOAD = True
 DO_MODEL_DOWNLOAD = False  
 
 # preparing the dataset
-DATA_REPO_ID = ""
-DATA_REPO_TYPE = ""
-DATA_FILENAME = ""
+DATA_REPO_ID = "pt-sk/pretraining-dataset"
+DATA_REPO_TYPE = "dataset"
+DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
 
 # preparing the model
 MODEL_REPO_ID = ""
