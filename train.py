@@ -13,6 +13,7 @@ from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
 
+
 # checking if need to download the dataset and model files
 DO_DATASET_DOWNLOAD = True
 DO_MODEL_DOWNLOAD = False  
@@ -28,7 +29,7 @@ MODEL_REPO_TYPE = ""
 MODEL_FILENAME = ""
 
 # checkpoint load flag to load the model and optimizer states if needed
-IF_CHECKPOINT_LOAD = False
+LOAD_CHECKPOINT = False
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -39,37 +40,47 @@ if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
     hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
     print("Downloading model files....")
     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
+
 elif DO_DATASET_DOWNLOAD:
     print("Downloading dataset files....")
     hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+
 elif DO_MODEL_DOWNLOAD:
     print("Downloading model files....")
     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
 
 
-
 # Load the dataset
+print("Loading dataset....")
 tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)
 print(f"Number of tokens: {len(tokens)}")
 
+
 # Load the model configuration
+print("Loading model configuration....")
 gin.parse_config_file("config/gpt2-small.gin")
 config = GPTConfig()
 print(config)
 
+
 # Set the seed for reproducibility
+print("Setting seed for reproducibility....")
 np.random.seed(config.seed)
 torch.manual_seed(config.seed)
 torch.cuda.manual_seed(config.seed)
 torch.cuda.manual_seed_all(config.seed)
 
-# load the checkpoint
-checkpoint = torch.load("/kaggle/working/2/checkpoint.pth")
 
+if LOAD_CHECKPOINT:
+    # load the checkpoint
+    print("Loading checkpoint....")
+    checkpoint = torch.load("/kaggle/working/2/checkpoint.pth")
+    print("Checkpoint loaded....")
 
 
 
 def trainer(rank, world_size):
+
     # Initialize the Process Group
     dist.init_process_group(backend=config.training_backend, rank=rank, world_size=world_size)
 
@@ -77,17 +88,28 @@ def trainer(rank, world_size):
     torch.cuda.set_device(rank)
     device = torch.device(config.device, rank)
 
-    # Define Model and Optimizer
+    # Define Model and 
+    print("Creating model....")
     model = GPT(config)
-    state_dict = {k.replace("module.", ""): v for k, v in checkpoint["model_state_dict"].items()}
-    model.load_state_dict(state_dict)
+    
+    if LOAD_CHECKPOINT:
+        # Load the model state
+        print("Loading model state....")
+        model.load_state_dict(checkpoint["model_state_dict"])
+        print("Model state loaded....")
+    
     model.to(config.dtype).to(device)
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
 
     # Define Optimizer    
     optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, betas=config.betas, eps=config.eps, weight_decay=config.weight_decay)
-    # Load the optimizer state
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    
+    if LOAD_CHECKPOINT:
+        # Load the optimizer state
+        print("Loading optimizer state....")
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        print("Optimizer state loaded....")
+
 
     # Create DataLoader
     dataset = TokenDataset(config, tokens)
@@ -100,9 +122,6 @@ def trainer(rank, world_size):
 
     # Training Loop
     model.train()
-    training_loss = []
-    gradient_norms = []
-    time_spent = []
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         sampler.set_epoch(epoch)  # Shuffle data per epoch for 
         
@@ -126,20 +145,13 @@ def trainer(rank, world_size):
             # Update weights and biases
             optimizer.step()
 
-            # Log training loss and gradient norms
-            training_loss.append(loss.item())
-            gradient_norms.append(grad_norm.item())
-            time_spent.append(time.time() - start_time)
+            end_time = time.time() - start_time
             if rank == 0:
-                print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(time_spent[-1], 2)} seconds")
+                print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
 
 
     # Log training loss and gradient norms
     if rank == 0:
-        np.save("training_loss.npy", np.array(training_loss))
-        np.save("gradient_norms.npy", np.array(gradient_norms))
-        np.save("time_spent.npy", np.array(time_spent))
-
         # Save the model and optimizer states for checkpointing
         torch.save(
             {
