@@ -11,37 +11,27 @@ from rope import *
 @gin.configurable
 @dataclass
 class GPTConfig:
-    # model 
     block_size: int
     vocab_size: int
     n_layer: int
     n_head: int 
     n_embd: int
     model_name: str
-
-    # training 
     batch_size: int
     epochs: int
     device: str
     clip_grad_norm_val: float
     training_backend: str
-    
-    # optimizer 
     learning_rate: float
     weight_decay: float
     eps: float
     betas: Tuple[float, float]
-    fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
-
-    # seed
     seed: int
-    
-    # rope
     base_theta: float
     scale_factor: float
-    
-    # dtype
     dtype: torch.dtype = torch.bfloat16
+    fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
+
 
     def __post_init__(self):
         self.head_dim = self.n_embd // self.n_head
