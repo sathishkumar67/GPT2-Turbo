@@ -16,7 +16,7 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, scale_facto
         A tensor of shape `(end, dim)` with the precomputed frequencies.
     """
     freqs = scale_factor / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
-    t = torch.arange(end, device=freqs.device, dtype=torch.float32) # change to torch.bfloat16 when using bfloat16
+    t = torch.arange(end, device=freqs.device, dtype=torch.bfloat16) # here we use bfloat16
     freqs = torch.outer(t, freqs)
     freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
     return freqs_cis
