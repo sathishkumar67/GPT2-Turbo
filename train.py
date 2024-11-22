@@ -155,7 +155,7 @@ def trainer(rank, world_size):
         # Save the model and optimizer states for checkpointing
         torch.save(
             {
-                "model_state_dict": model.state_dict(),
+                "model_state_dict": model.module.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
             },
             "checkpoint.pth",
