@@ -1,4 +1,4 @@
-GPTConfig.block_size = 2048            
+GPTConfig.block_size = 1792            
 GPTConfig.vocab_size = 100288           
 GPTConfig.n_layer = 16                 
 GPTConfig.n_head = 16                 
