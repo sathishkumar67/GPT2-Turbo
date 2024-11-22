@@ -25,7 +25,6 @@ class GPTConfig:
     weight_decay: float
     eps: float
     betas: Tuple[float, float]
-    seed: int
     base_theta: float
     scale_factor: float
     dtype: torch.dtype = torch.bfloat16
