@@ -16,7 +16,6 @@ class GPTConfig:
     n_layer: int
     n_head: int 
     n_embd: int
-    model_name: str
     batch_size: int
     epochs: int
     device: str
