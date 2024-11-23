@@ -121,8 +121,11 @@ def trainer(rank, world_size):
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         
+        start_time = 0
+        loss_accum = 0
+        grad_accum = 0
         for batch, (inputs, labels) in enumerate(dataloader):
-            start_time = time.time()
+            start_time += time.time()
             update_step = (batch + 1) % config.gradient_accumulation_steps == 0
             model.require_backward_grad_sync = update_step
 
@@ -142,15 +145,14 @@ def trainer(rank, world_size):
             scheduler.step()
 
             if  update_step:
-                end_time = time.time() - start_time    
+                end_time = time.time() - start_time
+                start_time = 0    
                 # Update weights and biases
                 optimizer.step()
                 optimizer.zero_grad()
 
-                
                 if rank == 0:
                     print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
-                print(f"Learning Rate: {scheduler.get_last_lr()[0]}")
 
     # Log training loss and gradient norms
     if rank == 0:
