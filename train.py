@@ -51,6 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 # Load the dataset
 tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)
+tokens[:40000000]
 print(f"Number of tokens: {len(tokens)}")
 
 
