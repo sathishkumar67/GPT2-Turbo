@@ -88,7 +88,7 @@ def trainer(rank, world_size):
     model.to(config.dtype).to(device)
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
     # Define Optimizer    
-    optimizer = model.module.configure_optimizers(config.learning_rate, config.weight_decay) 
+    optimizer = model.module.configure_optimizers() 
 
     if LOAD_CHECKPOINT:
         # Load the optimizer state
