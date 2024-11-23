@@ -6,6 +6,7 @@ import inspect
 from typing import Tuple
 import torch
 import torch.nn as nn
+from torch.optim import Optimizer
 from torch.nn import functional as F
 from rope import *
 
@@ -279,3 +280,26 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
         
         return logits, loss # (B, T, vocab_size), loss (if targets are provided)
+    
+
+class CosineWarmupScheduler(torch.optim.lr_scheduler._LRScheduler):
+    def __init__(self, optimizer: Optimizer, warmup_steps: int, total_steps: int, eta_min: float = 0.0, last_epoch: int = -1):
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        self.eta_min = eta_min
+        super(CosineWarmupScheduler, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        current_step = self.last_epoch + 1  # Start from 0
+        if current_step < self.warmup_steps:
+            # Linear warmup
+            return [
+                base_lr * current_step / self.warmup_steps for base_lr in self.base_lrs
+            ]
+        else:
+            # Cosine decay
+            progress = (current_step - self.warmup_steps) / (self.total_steps - self.warmup_steps)
+            return [
+                self.eta_min + 0.5 * (base_lr - self.eta_min) * (1 + torch.cos(torch.pi * progress))
+                for base_lr in self.base_lrs
+            ]

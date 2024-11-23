@@ -11,7 +11,7 @@ import torch.multiprocessing as mp
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from huggingface_hub import hf_hub_download
-from model import GPTConfig, GPT
+from model import GPTConfig, GPT, CosineWarmupScheduler
 from dataset import TokenDataset
 # import warnings
 # warnings.filterwarnings("ignore")
@@ -77,26 +77,6 @@ def trainer(rank, world_size):
     device = torch.device(config.model_device, rank) # Set the device for the current process
     config.model_device = device
 
-    if LOAD_CHECKPOINT:
-        # Load the model state
-        print("Loading model state....")
-        model.load_state_dict(checkpoint["model_state_dict"])
-        
-    # Initialize the model with the configuration 
-    model = GPT(config)
-
-    model.to(config.dtype).to(device)
-    model = DDP(model, device_ids=[rank])  # Wrap model in DDP
-    print(model.module.transformer.wte.weight.dtype)
-    # Define Optimizer    
-    optimizer = model.module.configure_optimizers() 
-
-    if LOAD_CHECKPOINT:
-        # Load the optimizer state
-        print("Loading optimizer state....")
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        
-
     # Create DataLoader
     dataset = TokenDataset(config, tokens)
     # Use DistributedSampler to partition data among distributed processes
@@ -104,7 +84,27 @@ def trainer(rank, world_size):
     # Use DataLoader to manage batches
     dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{device.type}:{rank}", prefetch_factor=2, persistent_workers=True)
     print(f"dataloader size: {len(dataloader)}")
+        
+    # Initialize the model with the configuration 
+    model = GPT(config)
+    if LOAD_CHECKPOINT:
+        # Load the model state
+        print("Loading model state....")
+        model.load_state_dict(checkpoint["model_state_dict"])
+    
 
+    model.to(config.dtype).to(device)
+    model = DDP(model, device_ids=[rank])  # Wrap model in DDP
+    
+    # Define Optimizer    
+    optimizer = model.module.configure_optimizers() 
+    if LOAD_CHECKPOINT:
+        # Load the optimizer state
+        print("Loading optimizer state....")
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+    # Define Scheduler
+    scheduler =CosineWarmupScheduler(optimizer, warmup_steps=1000, total_steps=len(dataloader), eta_min=config.learning_rate*0.1)
 
     # Training Loop
     model.train()
@@ -131,10 +131,13 @@ def trainer(rank, world_size):
             # Update weights and biases
             optimizer.step()
 
+            # Update learning rate
+            scheduler.step()
+
             end_time = time.time() - start_time
             if rank == 0:
                 print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
-
+                print(f"Learning Rate: {scheduler.get_last_lr()[0]}")
 
     # Log training loss and gradient norms
     if rank == 0:
