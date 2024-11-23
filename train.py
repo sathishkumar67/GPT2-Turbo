@@ -74,7 +74,7 @@ def trainer(rank, world_size):
 
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
-    device = torch.device(config.device, rank)
+    device = torch.device(config.model_device, rank)
     config.model_device = device
 
     if LOAD_CHECKPOINT:
@@ -99,7 +99,7 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=device, prefetch_factor=8)
     print(f"dataloader size: {len(dataloader)}")
 
 
