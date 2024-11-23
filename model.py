@@ -35,10 +35,12 @@ class GPTConfig:
     rng_device: str | torch.device = torch.device("cpu")
     model_device: Optional[str | torch.device] = torch.device("cpu")
     rng_generator: Optional[torch.Generator] = None
+
     def __post_init__(self) -> None:
         self.head_dim = self.n_embd // self.n_head
         self.intermediate_size = 4 * self.n_embd   
         self.rng_generator = torch.Generator(device=self.rng_device)     
+
 
 class RMSNorm(torch.nn.Module):
     def __init__(self, dim: int, eps: float = 1e-8) -> None:
@@ -155,6 +157,7 @@ class Block(nn.Module):
         x = x + self.mlp(self.ln_2(x))
 
         return x
+
 
 class GPT(nn.Module):
     def __init__(self, config: GPTConfig) -> None:
