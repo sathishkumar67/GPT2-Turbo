@@ -106,8 +106,6 @@ def trainer(rank, world_size):
     # setting the total steps and warmup steps for the scheduler
     config.total_steps = len(dataloader) * config.epochs
     config.warmup_steps = int(config.total_steps * 0.15)
-    print(config.total_steps, config.warmup_steps)
-    print(config)
 
     # Warmup scheduler
     warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
@@ -125,14 +123,14 @@ def trainer(rank, world_size):
         
         for batch, (inputs, labels) in enumerate(dataloader):
             start_time = time.time()
+            update_step = (batch + 1) % config.gradient_accumulation_steps == 0
+            model.require_backward_grad_sync = update_step
+
             # Move data to device
             inputs, labels = inputs.to(device), labels.to(device)
 
             # Forward pass
             _, loss = model(inputs, labels)
-            
-            # Zero gradients before backward pass
-            optimizer.zero_grad()
             
             # Backward pass
             loss.backward()
@@ -140,15 +138,18 @@ def trainer(rank, world_size):
             # Gradient clipping
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
             
-            # Update weights and biases
-            optimizer.step()
-
             # Update learning rate
             scheduler.step()
 
-            end_time = time.time() - start_time
-            if rank == 0:
-                print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
+            if  update_step:
+                end_time = time.time() - start_time    
+                # Update weights and biases
+                optimizer.step()
+                optimizer.zero_grad()
+
+                
+                if rank == 0:
+                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
                 print(f"Learning Rate: {scheduler.get_last_lr()[0]}")
 
     # Log training loss and gradient norms
