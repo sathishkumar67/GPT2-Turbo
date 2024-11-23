@@ -303,3 +303,15 @@ class CosineWarmupScheduler(torch.optim.lr_scheduler._LRScheduler):
                 self.eta_min + 0.5 * (base_lr - self.eta_min) * (1 + torch.cos(torch.pi * progress))
                 for base_lr in self.base_lrs
             ]
+
+#  CosineWarmupScheduler       
+# from torch.optim.lr_scheduler import LambdaLR
+# # Scheduler definition
+# scheduler = LambdaLR(optimizer, lr_lambda)
+
+# def lr_lambda(current_step: int):
+#     if current_step < warmup_steps:
+#         return current_step / warmup_steps  # Linear warmup
+#     else:
+#         progress = (current_step - warmup_steps) / (total_steps - warmup_steps)
+#         return 0.5 * (1 + math.cos(math.pi * progress))  # Cosine decay

@@ -5,11 +5,11 @@ import torch
 import time
 import numpy as np
 import torch.distributed
-import torch.optim as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT, CosineWarmupScheduler
 from dataset import TokenDataset
@@ -104,7 +104,17 @@ def trainer(rank, world_size):
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
     # Define Scheduler
-    scheduler =CosineWarmupScheduler(optimizer, warmup_steps=1000, total_steps=len(dataloader), eta_min=config.learning_rate*0.1)
+    # scheduler =CosineWarmupScheduler(optimizer, warmup_steps=1000, total_steps=len(dataloader), eta_min=config.learning_rate*0.1)
+
+    # Warmup scheduler
+    warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / 10)
+
+    # Cosine annealing after warmup
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=len(dataloader) - 10, eta_min=1e-5)
+
+    # Combine warmup and cosine
+    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[10])
+
 
     # Training Loop
     model.train()
@@ -157,7 +167,6 @@ def trainer(rank, world_size):
 def run_ddp_training():
     world_size = torch.cuda.device_count()  # Number of available GPUs
     mp.spawn(trainer, args=(world_size,), nprocs=world_size, join=True)
-
 
 if __name__ == "__main__":
     
