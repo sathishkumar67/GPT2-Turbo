@@ -32,8 +32,8 @@ class GPTConfig:
     fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
     do_init_params: Optional[bool] = False
     rng_seed: Optional[int] = 42
-    rng_device: str | torch.device = torch.device("cpu")
-    model_device: Optional[str | torch.device] = torch.device("cpu")
+    rng_device: str|torch.device = torch.device("cpu")
+    model_device: Optional[str|torch.device] = torch.device("cpu")
     rng_generator: Optional[torch.Generator] = None
 
     def __post_init__(self) -> None:

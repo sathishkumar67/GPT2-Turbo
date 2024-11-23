@@ -55,7 +55,10 @@ print(f"Number of tokens: {len(tokens)}")
 
 # Load the model configuration
 gin.parse_config_file("config/gpt2-small.gin")
-config = GPTConfig()
+config = GPTConfig(model_device="cuda")
+
+# Initialize the model with the configuration 
+model = GPT(config)
 
 
 if LOAD_CHECKPOINT:
@@ -72,9 +75,6 @@ def trainer(rank, world_size):
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
     device = torch.device(config.device, rank)
-
-    # Define Model and 
-    model = GPT(config)
     
     if LOAD_CHECKPOINT:
         # Load the model state
