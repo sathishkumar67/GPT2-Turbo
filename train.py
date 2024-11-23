@@ -121,19 +121,16 @@ def trainer(rank, world_size):
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         
-        time_accum = 0
-        loss_accum = 0
-        grad_accum = 0
         for batch, (inputs, labels) in enumerate(dataloader):
             start_time = time.time()
-            update_step = (batch + 1) % config.gradient_accumulation_steps == 0
-            model.require_backward_grad_sync = update_step
-
             # Move data to device
             inputs, labels = inputs.to(device), labels.to(device)
 
             # Forward pass
             _, loss = model(inputs, labels)
+            
+            # Zero gradients before backward pass
+            optimizer.zero_grad()
             
             # Backward pass
             loss.backward()
@@ -141,20 +138,16 @@ def trainer(rank, world_size):
             # Gradient clipping
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
             
+            # Update weights and biases
+            optimizer.step()
+
             # Update learning rate
             scheduler.step()
 
             end_time = time.time() - start_time
-            time_accum += end_time
-            if  update_step:
-                    
-                # Update weights and biases
-                optimizer.step()
-                optimizer.zero_grad()
+            if rank == 0:
+                print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
 
-                if rank == 0:
-                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
-                time_accum = 0
     # Log training loss and gradient norms
     if rank == 0:
         # Save the model and optimizer states for checkpointing
