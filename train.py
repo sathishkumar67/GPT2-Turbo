@@ -63,6 +63,8 @@ if LOAD_CHECKPOINT:
 
 
 def trainer(rank, world_size):
+    torch.set_float32_matmul_precision('medium')  # Set the matmul precision to medium
+
     # Load the model configuration
     gin.parse_config_file("config/gpt2-small.gin")
     config = GPTConfig(model_device="cuda")
@@ -85,10 +87,9 @@ def trainer(rank, world_size):
 
     model.to(config.dtype).to(device)
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
-
     # Define Optimizer    
-    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, betas=config.betas, eps=config.eps, weight_decay=config.weight_decay)
-    
+    optimizer = model.module.configure_optimizers(config.learning_rate, config.weight_decay) 
+
     if LOAD_CHECKPOINT:
         # Load the optimizer state
         print("Loading optimizer state....")
