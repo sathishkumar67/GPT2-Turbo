@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Optional
 import gin
 import inspect
 from typing import Tuple
@@ -30,11 +31,19 @@ class GPTConfig:
     scale_factor: float
     dtype: torch.dtype = torch.bfloat16
     fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
+    do_init_params: Optional[bool] = None
+    model_init_seed: Optional[int] = None
 
 
     def __post_init__(self):
         self.head_dim = self.n_embd // self.n_head
         self.intermediate_size = 4 * self.n_embd
+
+        if self.model_init_seed is None:
+            self.model_init_seed = 42
+
+        if self.do_init_params is None:
+            self.do_init_params = False
 
 
 class RMSNorm(torch.nn.Module):
@@ -154,7 +163,7 @@ class Block(nn.Module):
         return x
 
 class GPT(nn.Module):
-    def __init__(self, config) -> None:
+    def __init__(self, config: GPTConfig, generator: Optional[torch.Generator] = None) -> None:
         super().__init__()
 
         self.config = config
@@ -175,9 +184,27 @@ class GPT(nn.Module):
         self.freqs_cis = precompute_freqs_cis(dim=self.config.head_dim,
                                               end=self.config.block_size,
                                               theta=self.config.base_theta,
-                                              scale_factor=self.config.scale_factor,
+                                              scale_factor=self.config.scale_factor
                                               )
+        
+        if config.do_init_params and generator is not None:
+            # rng generator for initialization
+            self.generator =  generator
 
+            # initialize the parameters
+            self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(42))
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(42))
+        elif isinstance(module, RMSNorm):
+            nn.init.ones_(module.weight)
+            nn.init.zeros_(module.bias)
+            
     def forward(self, idx, targets=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes the forward pass of the GPT model.
@@ -221,4 +248,4 @@ class GPT(nn.Module):
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
         
-        return logits, loss 
+        return logits, loss # (B, T, vocab_size), loss (if targets are provided)
