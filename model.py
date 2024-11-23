@@ -24,11 +24,14 @@ class GPTConfig:
     clip_grad_norm_val: float
     training_backend: str
     learning_rate: float
+    eta_min: float
     weight_decay: float
     eps: float
     betas: Tuple[float, float]
     base_theta: float
     scale_factor: float
+    warmup_steps: Optional[int] = None 
+    total_steps: Optional[int] = None  
     dtype: torch.dtype = torch.bfloat16
     fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
     do_init_params: Optional[bool] = False
@@ -225,13 +228,8 @@ class GPT(nn.Module):
         # counts of parameters that will be decayed or not
         num_decay_params = sum(p.numel() for p in decay_params)
         num_nodecay_params = sum(p.numel() for p in nodecay_params)
-
-        # print parameter count info
-        print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
-        print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
         
-        # Create AdamW optimizer and use the fused version if it is available
-        print(f"using fused AdamW: {self.config.fused_optimizer}")
+        # Create AdamW optimizer and use the fused version 
         optimizer = torch.optim.AdamW(optim_groups, lr=self.config.learning_rate, betas=self.config.betas, eps=self.config.eps, fused=self.config.fused_optimizer)
 
         return optimizer
@@ -280,38 +278,3 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
         
         return logits, loss # (B, T, vocab_size), loss (if targets are provided)
-    
-
-class CosineWarmupScheduler(torch.optim.lr_scheduler._LRScheduler):
-    def __init__(self, optimizer: Optimizer, warmup_steps: int, total_steps: int, eta_min: float = 0.0, last_epoch: int = -1):
-        self.warmup_steps = warmup_steps
-        self.total_steps = total_steps
-        self.eta_min = eta_min
-        super(CosineWarmupScheduler, self).__init__(optimizer, last_epoch)
-
-    def get_lr(self):
-        current_step = self.last_epoch + 1  # Start from 0
-        if current_step < self.warmup_steps:
-            # Linear warmup
-            return [
-                base_lr * current_step / self.warmup_steps for base_lr in self.base_lrs
-            ]
-        else:
-            # Cosine decay
-            progress = (current_step - self.warmup_steps) / (self.total_steps - self.warmup_steps)
-            return [
-                self.eta_min + 0.5 * (base_lr - self.eta_min) * (1 + torch.cos(torch.pi * progress))
-                for base_lr in self.base_lrs
-            ]
-
-#  CosineWarmupScheduler       
-# from torch.optim.lr_scheduler import LambdaLR
-# # Scheduler definition
-# scheduler = LambdaLR(optimizer, lr_lambda)
-
-# def lr_lambda(current_step: int):
-#     if current_step < warmup_steps:
-#         return current_step / warmup_steps  # Linear warmup
-#     else:
-#         progress = (current_step - warmup_steps) / (total_steps - warmup_steps)
-#         return 0.5 * (1 + math.cos(math.pi * progress))  # Cosine decay
