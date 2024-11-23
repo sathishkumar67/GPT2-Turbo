@@ -87,7 +87,7 @@ def trainer(rank, world_size):
 
     model.to(config.dtype).to(device)
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
-    model = torch.compile(model)  # Compile the model for faster training
+    print(model.module.transformer.wte.weight.dtype)
     # Define Optimizer    
     optimizer = model.module.configure_optimizers() 
 
