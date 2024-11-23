@@ -75,7 +75,8 @@ def trainer(rank, world_size):
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
     device = torch.device(config.device, rank)
-    
+    config.model_device = device
+
     if LOAD_CHECKPOINT:
         # Load the model state
         print("Loading model state....")
