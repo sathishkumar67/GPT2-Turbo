@@ -125,7 +125,8 @@ def trainer(rank, world_size):
         loss_accum = 0
         grad_accum = 0
         for batch, (inputs, labels) in enumerate(dataloader):
-            start_time += time.time()
+            t0 = time.time()
+            start_time += t0
             update_step = (batch + 1) % config.gradient_accumulation_steps == 0
             model.require_backward_grad_sync = update_step
 
