@@ -44,21 +44,14 @@ if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
 elif DO_DATASET_DOWNLOAD:
     hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
 
-elif DO_MODEL_DOWNLOAD:
-    hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
+# elif DO_MODEL_DOWNLOAD:
+#     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
 
 
 # Load the dataset
 tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)
 print(f"Number of tokens: {len(tokens)}")
 
-
-# Load the model configuration
-gin.parse_config_file("config/gpt2-small.gin")
-config = GPTConfig(model_device="cuda")
-
-# Initialize the model with the configuration 
-model = GPT(config)
 
 
 if LOAD_CHECKPOINT:
@@ -68,7 +61,10 @@ if LOAD_CHECKPOINT:
 
 
 def trainer(rank, world_size):
-
+    # Load the model configuration
+    gin.parse_config_file("config/gpt2-small.gin")
+    config = GPTConfig(model_device="cuda")
+    
     # Initialize the Process Group
     dist.init_process_group(backend=config.training_backend, rank=rank, world_size=world_size)
 
@@ -82,6 +78,9 @@ def trainer(rank, world_size):
         print("Loading model state....")
         model.load_state_dict(checkpoint["model_state_dict"])
         
+    # Initialize the model with the configuration 
+    model = GPT(config)
+
     model.to(config.dtype).to(device)
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
 
