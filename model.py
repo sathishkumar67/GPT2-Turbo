@@ -20,7 +20,6 @@ class GPTConfig:
     attn_dropout: float
     batch_size: int
     epochs: int
-    device: str
     clip_grad_norm_val: float
     training_backend: str
     learning_rate: float
@@ -31,20 +30,15 @@ class GPTConfig:
     scale_factor: float
     dtype: torch.dtype = torch.bfloat16
     fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
-    do_init_params: Optional[bool] = None
-    model_init_seed: Optional[int] = None
-
-
-    def __post_init__(self):
+    do_init_params: Optional[bool] = False
+    rng_seed: Optional[int] = 42
+    rng_device: str | torch.device = torch.device("cpu")
+    model_device: Optional[str | torch.device] = torch.device("cpu")
+    rng_generator: Optional[torch.Generator] = None
+    def __post_init__(self) -> None:
         self.head_dim = self.n_embd // self.n_head
-        self.intermediate_size = 4 * self.n_embd
-
-        if self.model_init_seed is None:
-            self.model_init_seed = 42
-
-        if self.do_init_params is None:
-            self.do_init_params = False
-
+        self.intermediate_size = 4 * self.n_embd   
+        self.rng_generator = torch.Generator(device=self.rng_device)     
 
 class RMSNorm(torch.nn.Module):
     def __init__(self, dim: int, eps: float = 1e-8) -> None:
@@ -163,7 +157,7 @@ class Block(nn.Module):
         return x
 
 class GPT(nn.Module):
-    def __init__(self, config: GPTConfig, generator: Optional[torch.Generator] = None) -> None:
+    def __init__(self, config: GPTConfig) -> None:
         super().__init__()
 
         self.config = config
@@ -187,20 +181,17 @@ class GPT(nn.Module):
                                               scale_factor=self.config.scale_factor
                                               )
         
-        if config.do_init_params and generator is not None:
-            # rng generator for initialization
-            self.generator =  generator
-
+        if config.do_init_params and config.rng_generator is not None:
             # initialize the parameters
             self.apply(self._init_weights)
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(self.config.model_init_seed))
+            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.config.rng_generator.manual_seed(self.config.rng_seed))
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(self.config.model_init_seed))
+            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.config.rng_generator.manual_seed(self.config.rng_seed))
         elif isinstance(module, RMSNorm):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
