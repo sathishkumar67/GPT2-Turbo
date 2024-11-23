@@ -17,3 +17,4 @@ GPTConfig.scale_factor = 1.0
 GPTConfig.rng_seed = 42
 GPTConfig.do_init_params = True
 GPTConfig.eta_min = 3e-6
+GPTConfig.gradient_accumulation_steps = 8

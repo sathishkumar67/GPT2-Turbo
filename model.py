@@ -30,6 +30,7 @@ class GPTConfig:
     betas: Tuple[float, float]
     base_theta: float
     scale_factor: float
+    gradient_accumulation_steps: int
     warmup_steps: Optional[int] = None 
     total_steps: Optional[int] = None  
     dtype: torch.dtype = torch.bfloat16
