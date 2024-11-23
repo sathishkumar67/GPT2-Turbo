@@ -4,6 +4,7 @@ import gin
 import torch
 import time
 import numpy as np
+import torch.distributed
 import torch.optim as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -64,7 +65,7 @@ def trainer(rank, world_size):
     # Load the model configuration
     gin.parse_config_file("config/gpt2-small.gin")
     config = GPTConfig(model_device="cuda")
-    
+
     # Initialize the Process Group
     dist.init_process_group(backend=config.training_backend, rank=rank, world_size=world_size)
 
@@ -98,6 +99,8 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
+    print(torch.distributed.get_rank())
+    print(torch.cuda.current_device())
     dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=device, prefetch_factor=8)
     print(f"dataloader size: {len(dataloader)}")
 
