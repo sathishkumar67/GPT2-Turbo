@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
-from model import GPTConfig, GPT, CosineWarmupScheduler
+from model import GPTConfig, GPT
 from dataset import TokenDataset
 # import warnings
 # warnings.filterwarnings("ignore")
