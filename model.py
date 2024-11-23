@@ -196,16 +196,16 @@ class GPT(nn.Module):
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(42))
+            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(self.config.model_init_seed))
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(42))
+            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.generator.manual_seed(self.config.model_init_seed))
         elif isinstance(module, RMSNorm):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
-            
-    def forward(self, idx, targets=None) -> Tuple[torch.Tensor, torch.Tensor]:
+
+    def forward(self, idx: torch.Tensor, targets: Optional[torch.Tensor]=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes the forward pass of the GPT model.
 
