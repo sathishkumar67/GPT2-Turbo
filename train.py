@@ -82,7 +82,7 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{device.type}:{rank}", prefetch_factor=2, persistent_workers=True)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{device.type}:{rank}", prefetch_factor=4, persistent_workers=True)
     print(f"dataloader size: {len(dataloader)}")
         
     # Initialize the model with the configuration 
@@ -103,18 +103,20 @@ def trainer(rank, world_size):
         print("Loading optimizer state....")
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-    # Define Scheduler
-    # scheduler =CosineWarmupScheduler(optimizer, warmup_steps=1000, total_steps=len(dataloader), eta_min=config.learning_rate*0.1)
+    # setting the total steps and warmup steps for the scheduler
+    config.total_steps = len(dataloader) * config.epochs
+    config.warmup_steps = int(config.total_steps * 0.15)
+    print(config.total_steps, config.warmup_steps)
+    print(config)
 
     # Warmup scheduler
-    warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / 10)
+    warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
 
     # Cosine annealing after warmup
-    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=len(dataloader) - 10, eta_min=1e-5)
-
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=config.total_steps - config.warmup_steps, eta_min=config.eta_min)
+    
     # Combine warmup and cosine
-    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[10])
-
+    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
 
     # Training Loop
     model.train()
