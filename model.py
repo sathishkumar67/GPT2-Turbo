@@ -16,6 +16,7 @@ class GPTConfig:
     n_layer: int
     n_head: int 
     n_embd: int
+    attn_dropout: float
     batch_size: int
     epochs: int
     device: str
@@ -37,7 +38,7 @@ class GPTConfig:
 
 
 class RMSNorm(torch.nn.Module):
-    def __init__(self, dim: int, eps: float = 1e-6) -> None:
+    def __init__(self, dim: int, eps: float = 1e-8) -> None:
         """
         Initializes the RMSNorm module.
 
@@ -48,6 +49,7 @@ class RMSNorm(torch.nn.Module):
         super().__init__()
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
+        self.bias = nn.Parameter(torch.zeros(dim))
 
     def _norm(self, x) -> torch.Tensor:
         """
@@ -74,7 +76,7 @@ class RMSNorm(torch.nn.Module):
         Returns:
             The RMSNorm of the input tensor multiplied by a learnable scale factor.
         """
-        return self._norm(x.float()).type_as(x) * self.weight
+        return self._norm(x.float()).type_as(x) * self.weight + self.bias
     
 
 class CausalSelfAttention(nn.Module):
@@ -86,12 +88,11 @@ class CausalSelfAttention(nn.Module):
         assert self.config.n_embd % self.config.n_head == 0
 
         # key, query, value projections for all heads, but in a batch
-        self.qkv_proj = nn.Linear(self.config.n_embd, 3 * self.config.n_embd, bias=False)
+        self.qkv_proj = nn.Linear(self.config.n_embd, 3 * self.config.n_embd, bias=True)
         # output projection
-        self.o_proj = nn.Linear(self.config.n_embd, self.config.n_embd, bias=False)
+        self.o_proj = nn.Linear(self.config.n_embd, self.config.n_embd, bias=True)
         
     def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
-
         B, T, C = x.size()
         
         # query, key, value projections  
@@ -101,8 +102,8 @@ class CausalSelfAttention(nn.Module):
         q, k, v = qkv.split(self.config.n_embd, dim=2)
 
         # reshape q, k, v for multiple heads
-        k = k.view(B, T, self.config.n_head, C // self.config.n_head) 
-        q = q.view(B, T, self.config.n_head, C // self.config.n_head) 
+        q = q.view(B, T, self.config.n_head, C // self.config.n_head)
+        k = k.view(B, T, self.config.n_head, C // self.config.n_head)  
         v = v.view(B, T, self.config.n_head, C // self.config.n_head)
 
         # apply rotary embeddings to q and k
@@ -112,7 +113,7 @@ class CausalSelfAttention(nn.Module):
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
 
         # scaled dot product attention
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=True) 
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=True, dropout_p=self.config.attn_dropout) 
 
         # reshape for output projection
         y = y.transpose(1, 2).contiguous().view(B, T, C) 
@@ -127,9 +128,9 @@ class MLP(nn.Module):
         self.config = config
 
         # projections 
-        self.gate_proj = nn.Linear(self.config.n_embd, self.config.intermediate_size, bias=False)
-        self.up_proj = nn.Linear(self.config.n_embd, self.config.intermediate_size, bias=False)
-        self.down_proj = nn.Linear(self.config.intermediate_size, self.config.n_embd, bias=False)
+        self.gate_proj = nn.Linear(self.config.n_embd, self.config.intermediate_size, bias=True)
+        self.up_proj = nn.Linear(self.config.n_embd, self.config.intermediate_size, bias=True)
+        self.down_proj = nn.Linear(self.config.intermediate_size, self.config.n_embd, bias=True)
 
     def forward(self, x):
         return self.down_proj(nn.functional.gelu(self.gate_proj(x), approximate="tanh") * self.up_proj(x))
@@ -139,9 +140,9 @@ class Block(nn.Module):
     def __init__(self, config: GPTConfig) -> None:
         super().__init__()
 
-        self.ln_1 = RMSNorm(config.n_embd)
+        self.ln_1 = RMSNorm(config.n_embd, eps=config.eps)
         self.attn = CausalSelfAttention(config)
-        self.ln_2 = RMSNorm(config.n_embd)
+        self.ln_2 = RMSNorm(config.n_embd, eps=config.eps)
         self.mlp = MLP(config)
 
     def forward(self, x, freqs_cis: torch.Tensor) -> torch.Tensor:   
@@ -161,11 +162,11 @@ class GPT(nn.Module):
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f = RMSNorm(config.n_embd)
+            ln_f = RMSNorm(config.n_embd, eps=config.eps)
         ))
 
 
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=True)
 
         # weight sharing scheme
         self.transformer.wte.weight = self.lm_head.weight
