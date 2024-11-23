@@ -96,6 +96,7 @@ class CausalSelfAttention(nn.Module):
         self.qkv_proj = nn.Linear(self.config.n_embd, 3 * self.config.n_embd, bias=True)
         # output projection
         self.o_proj = nn.Linear(self.config.n_embd, self.config.n_embd, bias=True)
+        self.o_proj.SCALE_INIT = 1
         
     def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
         B, T, C = x.size()
@@ -136,9 +137,10 @@ class MLP(nn.Module):
         self.gate_proj = nn.Linear(self.config.n_embd, self.config.intermediate_size, bias=True)
         self.up_proj = nn.Linear(self.config.n_embd, self.config.intermediate_size, bias=True)
         self.down_proj = nn.Linear(self.config.intermediate_size, self.config.n_embd, bias=True)
+        self.down_proj.SCALE_INIT = 1
 
     def forward(self, x):
-        return self.down_proj(nn.functional.gelu(self.gate_proj(x), approximate="tanh") * self.up_proj(x))
+        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
     
 
 class Block(nn.Module):
@@ -190,7 +192,10 @@ class GPT(nn.Module):
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02, generator=self.config.rng_generator.manual_seed(self.config.rng_seed))
+            std = 0.02
+            if hasattr(module, "SCALE_INIT"):
+                std *= (2 * self.config.n_layer) ** -0.5
+            nn.init.normal_(module.weight, mean=0.0, std=std, generator=self.config.rng_generator.manual_seed(self.config.rng_seed))
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
