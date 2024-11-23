@@ -205,7 +205,7 @@ class GPT(nn.Module):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
     
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> torch.optim.Optimizer:
         # start with all of the candidate parameters (that require grad)
         param_dict = {pn: p for pn, p in self.named_parameters()}
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
@@ -232,7 +232,7 @@ class GPT(nn.Module):
         # Create AdamW optimizer and use the fused version if it is available
         print(f"using fused AdamW: {self.config.fused_optimizer}")
         optimizer = torch.optim.AdamW(optim_groups, lr=self.config.learning_rate, betas=self.config.betas, eps=self.config.eps, fused=self.config.fused_optimizer)
-        
+
         return optimizer
     
     def forward(self, idx: torch.Tensor, targets: Optional[torch.Tensor]=None) -> Tuple[torch.Tensor, torch.Tensor]:
