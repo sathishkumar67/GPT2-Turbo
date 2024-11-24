@@ -19,6 +19,7 @@ class GPTConfig:
     n_head: int 
     n_embd: int
     attn_dropout: float
+    pad_token_id: int
     batch_size: int
     epochs: int
     clip_grad_norm_val: float
@@ -174,7 +175,7 @@ class GPT(nn.Module):
         self.config = config
         
         self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(config.vocab_size, config.n_embd),
+            wte = nn.Embedding(config.vocab_size, config.n_embd, padding_idx=config.pad_token_id),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
             ln_f = RMSNorm(config.n_embd, eps=config.eps)
         ))
