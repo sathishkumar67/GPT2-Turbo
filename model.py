@@ -207,20 +207,22 @@ class GPT(nn.Module):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
     
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(self) -> torch.optim.Optimizer:        
         # start with all of the candidate parameters (that require grad)
+        param_dict = {pn: p for pn, p in self.named_parameters()}
+        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for _, p in {pn: p for pn, p in {pn: p for pn, p in self.named_parameters()}.items() if p.requires_grad}.items() if p.dim() >= 2]
-        nodecay_params = [p for _, p in {pn: p for pn, p in {pn: p for pn, p in self.named_parameters()}.items() if p.requires_grad}.items() if p.dim() < 2]
-                
+        decay_params = [p for _, p in param_dict.items() if p.dim() >= 2]
+        nodecay_params = [p for _, p in param_dict.items() if p.dim() < 2]
+
         # Create AdamW optimizer and use the fused version if available 
         return torch.optim.AdamW([{'params': decay_params, 'weight_decay': self.config.weight_decay},
-                                       {'params': nodecay_params, 'weight_decay': 0.0}], 
-                                      lr=self.config.learning_rate, 
-                                      betas=self.config.betas, 
-                                      eps=self.config.eps, 
-                                      fused=self.config.fused_optimizer)
+                                    {'params': nodecay_params, 'weight_decay': 0.0}], 
+                                    lr=self.config.learning_rate, 
+                                    betas=self.config.betas, 
+                                    eps=self.config.eps, 
+                                    fused=self.config.fused_optimizer)
 
     
     def forward(self, idx: torch.Tensor, targets: Optional[torch.Tensor]=None) -> Tuple[torch.Tensor, torch.Tensor]: # need to use use mask for attention
