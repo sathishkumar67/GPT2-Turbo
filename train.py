@@ -13,8 +13,8 @@ from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
-# import warnings
-# warnings.filterwarnings("ignore")
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # checking if need to download the dataset and model files
@@ -37,6 +37,7 @@ LOAD_CHECKPOINT = False
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
 
+
 # Download the dataset and model files if needed
 if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
     hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
@@ -50,15 +51,13 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[:40000000]
-print(f"Number of tokens: {len(tokens)}")
-
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[:40894464]
 
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
     checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}")
-    
+    print('Checkpoint loaded....')
 
 
 def trainer(rank, world_size):
@@ -84,15 +83,13 @@ def trainer(rank, world_size):
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
     dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", prefetch_factor=4, persistent_workers=True)
-    print(f"dataloader size: {len(dataloader)}")
         
     # Initialize the model with the configuration 
     model = GPT(config)
     if LOAD_CHECKPOINT:
         # Load the model state
-        print("Loading model state....")
         model.load_state_dict(checkpoint["model_state_dict"])
-    
+        print('Model loaded....')
 
     model.to(config.dtype).to(config.model_device)  # Move model to respective device
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
@@ -101,13 +98,17 @@ def trainer(rank, world_size):
     optimizer = model.module.configure_optimizers() 
     if LOAD_CHECKPOINT:
         # Load the optimizer state
-        print("Loading optimizer state....")
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        print('Optimizer loaded....')
 
     # setting the total steps and warmup steps for the scheduler
-    config.steps_per_epoch = len(dataloader)
+    config.steps_per_epoch = len(dataloader)/config.gradient_accumulation_steps
     config.total_steps = config.steps_per_epoch * config.epochs
     config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
+
+    if master_process:
+        print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
+        print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
 
     # Warmup scheduler
     warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
@@ -151,6 +152,9 @@ def trainer(rank, world_size):
                 # Update parameters
                 optimizer.step()
 
+                # Update learning rate for the next iteration
+                scheduler.step()
+                
                 # Zero gradients for next iteration
                 optimizer.zero_grad()
 
@@ -163,9 +167,6 @@ def trainer(rank, world_size):
                 loss_accum = 0.0
                 grad_norm = None
                 start_time = time.time()
-
-            # Update learning rate for the next iteration
-            scheduler.step()
 
             
     # Save the model and optimizer states            
