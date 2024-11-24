@@ -118,7 +118,7 @@ def trainer(rank, world_size):
     # Combine warmup and cosine
     scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
 
-    # Training Loop
+    # Training Loop 
     model.train()
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
@@ -154,10 +154,6 @@ def trainer(rank, world_size):
                 # Zero gradients for next iteration
                 optimizer.zero_grad()
 
-                dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)  # Average loss across all processes
-                dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)  # Average gradient norm across all processes
-
-                # 
                 # time taken for the gradient accumulation step
                 end_time = time.time() - start_time
 
@@ -172,10 +168,8 @@ def trainer(rank, world_size):
             scheduler.step()
 
             
-            
-    # Log training loss and gradient norms
-    if rank == 0:
-        # Save the model and optimizer states for checkpointing
+    # Save the model and optimizer states            
+    if master_process:
         torch.save(
             {
                 "model_state_dict": model.module.state_dict(),
