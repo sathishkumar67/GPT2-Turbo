@@ -6,7 +6,6 @@ import inspect
 from typing import Tuple
 import torch
 import torch.nn as nn
-from torch.optim import Optimizer
 from torch.nn import functional as F
 from rope import *
 
@@ -108,7 +107,7 @@ class CausalSelfAttention(nn.Module):
         self.o_proj = nn.Linear(self.config.n_embd, self.config.n_embd, bias=True)
         self.o_proj.SCALE_INIT = 1
         
-    def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:  # need to use use mask for attention
         B, T, C = x.size()
         
         # query, key, value projections  
@@ -128,13 +127,7 @@ class CausalSelfAttention(nn.Module):
         # reshape q, k, v for attention
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
 
-        # scaled dot product attention
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=True, dropout_p=self.config.attn_dropout) 
-
-        # reshape for output projection
-        y = y.transpose(1, 2).contiguous().view(B, T, C) 
-    
-        return self.o_proj(y)
+        return self.o_proj(F.scaled_dot_product_attention(q, k, v, is_causal=True, dropout_p=self.config.attn_dropout).transpose(1, 2).contiguous().view(B, T, C))
 
 
 class MLP(nn.Module):
@@ -216,30 +209,21 @@ class GPT(nn.Module):
     
     def configure_optimizers(self) -> torch.optim.Optimizer:
         # start with all of the candidate parameters (that require grad)
-        param_dict = {pn: p for pn, p in self.named_parameters()}
-        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
-        
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
-        
-        # optim groups for weight decay and no weight decay
-        optim_groups = [
-            {'params': decay_params, 'weight_decay': self.config.weight_decay},
-            {'params': nodecay_params, 'weight_decay': 0.0}
-        ]
-        
-        # counts of parameters that will be decayed or not
-        num_decay_params = sum(p.numel() for p in decay_params)
-        num_nodecay_params = sum(p.numel() for p in nodecay_params)
-        
-        # Create AdamW optimizer and use the fused version 
-        optimizer = torch.optim.AdamW(optim_groups, lr=self.config.learning_rate, betas=self.config.betas, eps=self.config.eps, fused=self.config.fused_optimizer)
+        decay_params = [p for _, p in {pn: p for pn, p in {pn: p for pn, p in self.named_parameters()}.items() if p.requires_grad}.items() if p.dim() >= 2]
+        nodecay_params = [p for _, p in {pn: p for pn, p in {pn: p for pn, p in self.named_parameters()}.items() if p.requires_grad}.items() if p.dim() < 2]
+                
+        # Create AdamW optimizer and use the fused version if available 
+        return torch.optim.AdamW([{'params': decay_params, 'weight_decay': self.config.weight_decay},
+                                       {'params': nodecay_params, 'weight_decay': 0.0}], 
+                                      lr=self.config.learning_rate, 
+                                      betas=self.config.betas, 
+                                      eps=self.config.eps, 
+                                      fused=self.config.fused_optimizer)
 
-        return optimizer
     
-    def forward(self, idx: torch.Tensor, targets: Optional[torch.Tensor]=None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, idx: torch.Tensor, targets: Optional[torch.Tensor]=None) -> Tuple[torch.Tensor, torch.Tensor]: # need to use use mask for attention
         """
         Computes the forward pass of the GPT model.
 
@@ -273,13 +257,11 @@ class GPT(nn.Module):
         for block in self.transformer.h:
             x = block(x, freqs_cis=self.freqs_cis)
         
-        # forward the final layernorm and the classifier
-        x = self.transformer.ln_f(x)
-        logits = self.lm_head(x) # (B, T, vocab_size)
+        # forward the final layernorm and the classifier head
+        x = self.lm_head(self.transformer.ln_f(x)) # (B, T, vocab_size)
         
-        loss = None
         # compute the loss if targets are provided
         if targets is not None:
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
-        
-        return logits, loss # (B, T, vocab_size), loss (if targets are provided)
+            return x, F.cross_entropy(x.view(-1, x.size(-1)), targets.view(-1))  # (B, T, vocab_size), loss (if targets are provided)
+        else: 
+            return x, None  # (B, T, vocab_size), None (if targets are not provided) 
