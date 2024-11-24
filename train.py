@@ -50,8 +50,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)
-tokens = tokens[:40000000]
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[:40000000]
 print(f"Number of tokens: {len(tokens)}")
 
 
@@ -63,6 +62,9 @@ if LOAD_CHECKPOINT:
 
 
 def trainer(rank, world_size):
+    # set the master process
+    master_process = (rank == 0)
+
     torch.set_float32_matmul_precision('medium')  # Set the matmul precision to medium
 
     # Load the model configuration
@@ -74,15 +76,14 @@ def trainer(rank, world_size):
 
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
-    device = torch.device(config.model_device, rank) # Set the device for the current process
-    config.model_device = device
+    config.model_device = torch.device(config.model_device, rank) # Set the device for the current process
 
     # Create DataLoader
     dataset = TokenDataset(config, tokens)
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{device.type}:{rank}", prefetch_factor=4, persistent_workers=True)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", prefetch_factor=4, persistent_workers=True)
     print(f"dataloader size: {len(dataloader)}")
         
     # Initialize the model with the configuration 
@@ -93,7 +94,7 @@ def trainer(rank, world_size):
         model.load_state_dict(checkpoint["model_state_dict"])
     
 
-    model.to(config.dtype).to(device)
+    model.to(config.dtype).to(config.model_device)  # Move model to respective device
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
     
     # Define Optimizer    
@@ -107,7 +108,6 @@ def trainer(rank, world_size):
     config.steps_per_epoch = len(dataloader)
     config.total_steps = config.steps_per_epoch * config.epochs
     config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
-    print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps} Steps per Epoch: {config.steps_per_epoch}")
 
     # Warmup scheduler
     warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
@@ -123,33 +123,51 @@ def trainer(rank, world_size):
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         
+        loss_accum = 0.0  
         for batch, (inputs, labels) in enumerate(dataloader):
+            gradient_accum_cond = (batch + 1) % config.gradient_accumulation_steps == 0 or (batch + 1) == config.steps_per_epoch
+            model.require_backward_grad_sync = gradient_accum_cond
+ 
             start_time = time.time()
             # Move data to device
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
 
             # Forward pass
             _, loss = model(inputs, labels)
             
-            # Zero gradients before backward pass
-            optimizer.zero_grad()
-            
+            # scale the loss for gradient accumulation
+            loss = loss / config.gradient_accumulation_steps
+
+            # Accumulate loss
+            loss_accum += loss.detach()
+
             # Backward pass
             loss.backward()
 
-            # Gradient clipping
-            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
-            
-            # Update weights and biases
-            optimizer.step()
+            if gradient_accum_cond:
+                # Gradient clipping before stepping
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
 
-            # Update learning rate
+                # Update parameters
+                optimizer.step()
+
+                # Zero gradients for next iteration
+                optimizer.zero_grad()
+
+                dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)  # Average loss across all processes
+                dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)  # Average gradient norm across all processes
+
+                if master_process:
+                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
+
+                loss_accum = 0.0
+                grad_norm = None
+                
+            # Update learning rate for the next iteration
             scheduler.step()
 
             end_time = time.time() - start_time
-            if rank == 0:
-                print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
-
+            
     # Log training loss and gradient norms
     if rank == 0:
         # Save the model and optimizer states for checkpointing
