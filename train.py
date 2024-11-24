@@ -102,8 +102,8 @@ def trainer(rank, world_size):
         print('Optimizer loaded....')
 
     # setting the total steps and warmup steps for the scheduler
-    config.steps_per_epoch = len(dataloader)/config.gradient_accumulation_steps
-    config.total_steps = config.steps_per_epoch * config.epochs
+    config.steps_per_epoch = len(dataloader)
+    config.total_steps = (config.steps_per_epoch * config.epochs)//config.gradient_accumulation_steps
     config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
 
     if master_process:
