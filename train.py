@@ -104,8 +104,10 @@ def trainer(rank, world_size):
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
     # setting the total steps and warmup steps for the scheduler
-    config.total_steps = len(dataloader) * config.epochs
-    config.warmup_steps = int(config.total_steps * 0.15)
+    config.steps_per_epoch = len(dataloader)
+    config.total_steps = config.steps_per_epoch * config.epochs
+    config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
+    print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps} Steps per Epoch: {config.steps_per_epoch}")
 
     # Warmup scheduler
     warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
