@@ -33,7 +33,8 @@ class GPTConfig:
     scale_factor: float
     gradient_accumulation_steps: int
     warmup_steps: Optional[int] = None 
-    total_steps: Optional[int] = None  
+    total_steps: Optional[int] = None
+    steps_per_epoch: Optional[int] = None  
     dtype: torch.dtype = torch.bfloat16
     fused_optimizer: bool = "fused" in inspect.signature(torch.optim.AdamW).parameters
     do_init_params: Optional[bool] = False
@@ -44,7 +45,8 @@ class GPTConfig:
 
     def __post_init__(self) -> None:
         self.head_dim = self.n_embd // self.n_head
-        self.intermediate_size = 4 * self.n_embd   
+        self.intermediate_size = 4 * self.n_embd
+           
         if self.rng_generator is None:
             self.rng_generator = torch.Generator(device=self.rng_device)     
 
