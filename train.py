@@ -123,12 +123,12 @@ def trainer(rank, world_size):
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         
-        loss_accum = 0.0  
+        loss_accum = 0.0
+        start_time = time.time()  
         for batch, (inputs, labels) in enumerate(dataloader):
             gradient_accum_cond = (batch + 1) % config.gradient_accumulation_steps == 0 or (batch + 1) == config.steps_per_epoch
             model.require_backward_grad_sync = gradient_accum_cond
  
-            start_time = time.time()
             # Move data to device
             inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
 
@@ -157,16 +157,21 @@ def trainer(rank, world_size):
                 dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)  # Average loss across all processes
                 dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)  # Average gradient norm across all processes
 
+                # 
+                # time taken for the gradient accumulation step
+                end_time = time.time() - start_time
+
                 if master_process:
                     print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
 
                 loss_accum = 0.0
                 grad_norm = None
-                
+                start_time = time.time()
+
             # Update learning rate for the next iteration
             scheduler.step()
 
-            end_time = time.time() - start_time
+            
             
     # Log training loss and gradient norms
     if rank == 0:
