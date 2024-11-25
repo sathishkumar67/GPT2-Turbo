@@ -15,9 +15,8 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, scale_facto
     Returns:
         A tensor of shape `(end, dim)` with the precomputed frequencies.
     """
-    freqs = scale_factor / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
-    t = torch.arange(end, device=freqs.device, dtype=torch.bfloat16) # here we use bfloat16
-    freqs = torch.outer(t, freqs)
+    t = torch.arange(end, dtype=torch.bfloat16) # here we use bfloat16
+    freqs = torch.outer(t, scale_factor / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim)))
     freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
     return freqs_cis
 
@@ -42,11 +41,7 @@ def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor) -> torch.Ten
     return freqs_cis.view(*[d if i == 1 or i == x.ndim - 1 else 1 for i, d in enumerate(x.shape)])
 
 
-def apply_rotary_emb(
-    xq: torch.Tensor,
-    xk: torch.Tensor,
-    freqs_cis: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+def apply_rotary_emb(xq: torch.Tensor, xk: torch.Tensor, freqs_cis: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Apply the rotary embeddings to the query and key tensors.
 
