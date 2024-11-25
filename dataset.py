@@ -1,29 +1,28 @@
 from __future__ import annotations
 import torch
 from torch.utils.data import Dataset
-from model import GPTConfig
 from typing import Tuple, List
 
 
 
 
-class TokenDataset(Dataset):
-    def __init__(self, model_args: GPTConfig, input_ids: List) -> None:
+class TokenDataset(Dataset): # need to pad tokens if the length is less than the block size
+    def __init__(self, block_size: int, input_ids: List) -> None:
         """
         Initializes the TokenDataset.
 
         Args:
-            model_args: An instance of ModelArgs containing model configuration
+            config: An instance of ModelArgs containing model configuration
                 parameters, including the maximum sequence length.
             input_ids: A tensor containing tokenized input data.
 
         Attributes:
             input_ids: Stores the tokenized input data.
             block_size: The block size for dividing the input data, determined by
-                the maximum sequence length in model_args.
+                the maximum sequence length in config.
         """
         self.input_ids = input_ids
-        self.block_size = model_args.block_size
+        self.block_size = block_size
 
     def __len__(self) -> int:
         """
@@ -50,7 +49,4 @@ class TokenDataset(Dataset):
         start_idx = idx * self.block_size
         end_idx = start_idx + self.block_size
         
-        x = self.input_ids[start_idx:end_idx]
-        y = self.input_ids[start_idx+1:end_idx+1]
-        
-        return torch.LongTensor(x), torch.LongTensor(y)
+        return torch.LongTensor(self.input_ids[start_idx:end_idx]), torch.LongTensor(self.input_ids[start_idx+1:end_idx+1])
