@@ -61,13 +61,16 @@ if LOAD_CHECKPOINT:
 
 
 def trainer(rank, world_size):
+    # Enable the cudnn backend for better performance
+    torch.backends.cudnn.benchmark = True
+
     # set the master process
     master_process = (rank == 0)
-    print(rank, world_size, master_process)
     torch.set_float32_matmul_precision('medium')  # Set the matmul precision to medium
-
-    # Load the model configuration
+    
+    # parse the gin config file
     gin.parse_config_file("config/gpt2-small.gin")
+    # Load the model configuration
     config = GPTConfig(model_device="cuda")
 
     # Initialize the Process Group
@@ -82,7 +85,7 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", prefetch_factor=4, persistent_workers=True)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, num_workers=1, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", prefetch_factor=8, persistent_workers=True)
         
     # Initialize the model with the configuration 
     model = GPT(config)
@@ -127,7 +130,7 @@ def trainer(rank, world_size):
         loss_accum = 0.0
         start_time = time.time()  
         for batch, (inputs, labels) in enumerate(dataloader):
-            gradient_accum_cond = (batch + 1) % config.gradient_accumulation_steps == 0 or (batch + 1) == config.steps_per_epoch
+            gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
             model.require_backward_grad_sync = gradient_accum_cond
  
             # Move data to device
@@ -173,7 +176,7 @@ def trainer(rank, world_size):
     if master_process:
         torch.save(
             {
-                "model_state_dict": model.module.state_dict(),
+                "model_state_dict": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
             },
             "checkpoint.pth",
@@ -187,8 +190,9 @@ def run_ddp_training():
     world_size = torch.cuda.device_count()  # Number of available GPUs
     mp.spawn(trainer, args=(world_size,), nprocs=world_size, join=True)
 
+
+
 if __name__ == "__main__":
-    
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(torch.cuda.device_count())  # Total number of GPUs on this node
