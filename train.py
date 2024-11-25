@@ -63,7 +63,7 @@ if LOAD_CHECKPOINT:
 def trainer(rank, world_size):
     # set the master process
     master_process = (rank == 0)
-
+    print(rank, world_size, master_process)
     torch.set_float32_matmul_precision('medium')  # Set the matmul precision to medium
 
     # Load the model configuration
