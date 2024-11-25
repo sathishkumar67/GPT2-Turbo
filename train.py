@@ -81,7 +81,7 @@ def trainer(rank, world_size):
     config.model_device = torch.device(config.model_device, rank) # Set the device for the current process
 
     # Create DataLoader
-    dataset = TokenDataset(config, tokens)
+    dataset = TokenDataset(config.block_size, tokens)
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
