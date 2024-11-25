@@ -1,1 +1,3 @@
 # need to use mask's in attn block for pad tokens
+# some tokens are not making it to the training, use pad tokens for that, make drop last = False in both dataloader and sampler
+# need to implement pad tokens in dataset.py
