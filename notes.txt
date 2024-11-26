@@ -6,3 +6,8 @@
     # getting 4992 batches which is perfectly divisible by the grad accum steps
     # warmup steps ratio = 0.15
     # training with warmup then cosine decay cycle = 1
+
+# started the 2nd phase of pretraining
+    # using the same settings as the first phase
+    # using the same no of tokens, which took about 8.45 hrs to train
+    # selecting the 2nd 24379393 for training

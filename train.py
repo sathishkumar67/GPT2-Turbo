@@ -19,7 +19,7 @@ from dataset import TokenDataset
 
 # checking if need to download the dataset and model files
 DO_DATASET_DOWNLOAD = True
-DO_MODEL_DOWNLOAD = False  
+DO_MODEL_DOWNLOAD = True  
 
 # preparing the dataset
 DATA_REPO_ID = "pt-sk/pretraining-dataset"
@@ -27,12 +27,12 @@ DATA_REPO_TYPE = "dataset"
 DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
 
 # preparing the model
-MODEL_REPO_ID = ""
-MODEL_REPO_TYPE = ""
-MODEL_FILENAME = ""
+MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
+MODEL_REPO_TYPE = "model"
+MODEL_FILENAME = "1/checkpoint.pth"
 
 # checkpoint load flag to load the model and optimizer states if needed
-LOAD_CHECKPOINT = False
+LOAD_CHECKPOINT = True
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -51,7 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[:24379393]
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[24379392:48758785]
 
 
 if LOAD_CHECKPOINT:
