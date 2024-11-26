@@ -11,3 +11,7 @@
     # using the same settings as the first phase
     # using the same no of tokens, which took about 8.45 hrs to train
     # selecting the 2nd 24379393 for training
+
+# started the 3rd phase of pretraining
+    # all of them are same
+    # selecting the 3rd 24379393 for training
