@@ -13,54 +13,53 @@ from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
-# import warnings
-# warnings.filterwarnings("ignore")
-
-
-# checking if need to download the dataset and model files
-DO_DATASET_DOWNLOAD = True
-DO_MODEL_DOWNLOAD = True  
-
-# preparing the dataset
-DATA_REPO_ID = "pt-sk/pretraining-dataset"
-DATA_REPO_TYPE = "dataset"
-DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
-
-# preparing the model
-MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
-MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "1/checkpoint.pth"
-
-# checkpoint load flag to load the model and optimizer states if needed
-LOAD_CHECKPOINT = True
-
-# local directory to save the downloaded files
-LOCAL_DIR = "/kaggle/working"
-
-
-# Download the dataset and model files if needed
-if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
-    hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
-    hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
-
-elif DO_DATASET_DOWNLOAD:
-    hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
-
-# elif DO_MODEL_DOWNLOAD:
-#     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
-
-
-# Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[24379392:48758785]
-print(f"Dataset loaded with {len(tokens)} tokens....")
-
-if LOAD_CHECKPOINT:
-    # load the checkpoint
-    checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}", weights_only=True, map_location="cpu")
-    print('Checkpoint loaded....')
 
 
 def trainer(rank, world_size):
+    # checking if need to download the dataset and model files
+    DO_DATASET_DOWNLOAD = True
+    DO_MODEL_DOWNLOAD = True  
+
+    # preparing the dataset
+    DATA_REPO_ID = "pt-sk/pretraining-dataset"
+    DATA_REPO_TYPE = "dataset"
+    DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
+
+    # preparing the model
+    MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
+    MODEL_REPO_TYPE = "model"
+    MODEL_FILENAME = "1/checkpoint.pth"
+
+    # checkpoint load flag to load the model and optimizer states if needed
+    LOAD_CHECKPOINT = True
+
+    # local directory to save the downloaded files
+    LOCAL_DIR = "/kaggle/working"
+
+
+    # Download the dataset and model files if needed
+    if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
+        hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+        hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
+
+    elif DO_DATASET_DOWNLOAD:
+        hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+
+    # elif DO_MODEL_DOWNLOAD:
+    #     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
+
+
+    # Load the dataset
+    tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[24379392:48758785]
+    print(f"Dataset loaded with {len(tokens)} tokens....")
+
+
+    if LOAD_CHECKPOINT:
+        # load the checkpoint
+        checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}", weights_only=True, map_location="cpu")
+        print('Checkpoint loaded....')
+
+
     # Enable the cudnn backend for better performance
     torch.backends.cudnn.benchmark = True
 
@@ -85,7 +84,7 @@ def trainer(rank, world_size):
     # Use DistributedSampler to partition data among distributed processes
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
     # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True)
         
     # Initialize the model with the configuration 
     model = GPT(config)
