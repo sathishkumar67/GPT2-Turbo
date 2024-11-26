@@ -52,7 +52,7 @@ elif DO_DATASET_DOWNLOAD:
 
 # Load the dataset
 tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[24379392:48758785]
-torch.load()
+print(f"Dataset loaded with {len(tokens)} tokens....")
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
