@@ -56,7 +56,7 @@ print(f"Dataset loaded with {len(tokens)} tokens....")
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
-    checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}")
+    checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}", weights_only=True, map_location="cpu")
     print('Checkpoint loaded....')
 
 
@@ -71,14 +71,14 @@ def trainer(rank, world_size):
     # parse the gin config file
     gin.parse_config_file("config/gpt2-small.gin")
     # Load the model configuration
-    config = GPTConfig(model_device="cuda")
+    config = GPTConfig()
 
     # Initialize the Process Group
     dist.init_process_group(backend=config.training_backend, rank=rank, world_size=world_size)
 
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
-    config.model_device = torch.device(config.model_device, rank) # Set the device for the current process
+    config.model_device = torch.device("cuda", rank) # Set the device for the current process
 
     # Create DataLoader
     dataset = TokenDataset(config.block_size, tokens)
