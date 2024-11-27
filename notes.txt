@@ -3,9 +3,12 @@
     # setting grad accum steps to 8(lower in order for the model to settle down, then start to increase the grad accum steps)
     # using the same config, initalized model, no model downloading, only dataset downloading
     # choosing the first 24379393 tokens
-    # getting 4992 batches which is perfectly divisible by the grad accum steps
+    # an extra token is used
+    # for each training phase there is a overlap of 1 token
+    # getting 5952 batches which is perfectly divisible by the 2 processes
     # warmup steps ratio = 0.15
     # training with warmup then cosine decay cycle = 1
+    # each with warmup steps of 111 and total steps of 744
 
 # started the 2nd phase of pretraining
     # using the same settings as the first phase
