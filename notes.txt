@@ -15,3 +15,6 @@
 # started the 3rd phase of pretraining
     # all of them are same
     # selecting the 3rd 24379393 for training
+
+# started 4th phase of pretraining
+    # same as before tokens upto 97517569
