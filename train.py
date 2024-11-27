@@ -29,7 +29,7 @@ DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "2/checkpoint.pth"
+MODEL_FILENAME = "3/checkpoint.pth"
 
 # checkpoint load flag to load the model and optimizer states if needed
 LOAD_CHECKPOINT = True
@@ -51,7 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[48758784:73138177]
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[73138176:97517569]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 
 if LOAD_CHECKPOINT:
