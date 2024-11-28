@@ -29,3 +29,7 @@
 # started 6th phase of pretraining
     # same as before
     # tokens upto 146276353
+
+# started 7th phase of pretraining
+    # same as before
+    # tokens upto 170655747
