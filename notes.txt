@@ -18,5 +18,5 @@
 7th Phase: Tokens up to 170,655,747
 8th Phase: Tokens up to 195,035,139
 
-using 26080000 tokens instead of 24379393, with gradient_accumulation_steps = 32 instead of 8 
-9th Phase: Tokens up to 221,115,138
+with gradient_accumulation_steps = 32 instead of 8 
+9th Phase: Tokens up to 219,414,531
