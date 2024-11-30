@@ -51,7 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[195035138:221115138]
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[195035138:219414531]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 
 if LOAD_CHECKPOINT:
