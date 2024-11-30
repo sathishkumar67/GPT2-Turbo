@@ -7,7 +7,7 @@ from typing import Tuple, List
 
 
 class TokenDataset(Dataset): # need to pad tokens if the length is less than the block size
-    def __init__(self, block_size: int, input_ids: List) -> None:
+    def __init__(self, block_size: int, input_ids: List[int]) -> None:
         """
         Initializes the TokenDataset.
 
@@ -49,4 +49,4 @@ class TokenDataset(Dataset): # need to pad tokens if the length is less than the
         start_idx = idx * self.block_size
         end_idx = start_idx + self.block_size
         
-        return torch.LongTensor(self.input_ids[start_idx:end_idx]), torch.LongTensor(self.input_ids[start_idx+1:end_idx+1])
+        return torch.tensor(self.input_ids[start_idx:end_idx], dtype=torch.long), torch.tensor(self.input_ids[start_idx+1:end_idx+1], dtype=torch.long)
