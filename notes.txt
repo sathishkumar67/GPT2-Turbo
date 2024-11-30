@@ -1,39 +1,22 @@
 # for the first phase of pretraining
     # init model using init method
     # setting grad accum steps to 8(lower in order for the model to settle down, then start to increase the grad accum steps)
-    # using the same config, initalized model, no model downloading, only dataset downloading
-    # choosing the first 24379393 tokens
-    # an extra token is used
-    # for each training phase there is a overlap of 1 token
-    # getting 5952 batches which is perfectly divisible by the 2 processes
-    # warmup steps ratio = 0.15
+    # using the same config, initalized model, dataset downloading, model downloading from 2nd phase
+    # choosing the 24379393 tokens
+    # for each training phase there is a overlap of 1 token at the last needed for the target
+    # getting 5952 batches which is perfectly divisible by the 2 processes, each gpu processing 2976 batches
+    # warmup steps ratio = 0.15, warmup steps = 111, total steps = 744
     # training with warmup then cosine decay cycle = 1
-    # each with warmup steps of 111 and total steps of 744
 
-# started the 2nd phase of pretraining
-    # using the same settings as the first phase
-    # using the same no of tokens, which took about 8.45 hrs to train
-    # selecting the 2nd 24379393 for training
+# using same setting
+1st Phase: Tokens up to 24,379,393
+2nd Phase: Tokens up to 48,758,786
+3rd Phase: Tokens up to 73,138,179
+4th Phase: Tokens up to 97,517,569
+5th Phase: Tokens up to 121,896,961
+6th Phase: Tokens up to 146,276,353
+7th Phase: Tokens up to 170,655,747
+8th Phase: Tokens up to 195,035,139
 
-# started the 3rd phase of pretraining
-    # all of them are same
-    # selecting the 3rd 24379393 for training
-
-# started 4th phase of pretraining
-    # same as before tokens upto 97517569
-
-# started 5th phase of pretraining
-    # same as before
-    # tokens upto 121896961
-
-# started 6th phase of pretraining
-    # same as before
-    # tokens upto 146276353
-
-# started 7th phase of pretraining
-    # same as before
-    # tokens upto 170655747
-
-# started 8th phase of pretraining
-    # same as before
-    # tokens upto 195035139
+using 26080000 tokens instead of 24379393, with gradient_accumulation_steps = 32 instead of 8 
+9th Phase: Tokens up to 221,115,138
