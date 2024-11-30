@@ -4,3 +4,5 @@
 # need to check the sample output
 # need to download hello swag dataset for eval
 # need to use seperate eval dataset for eval checking
+
+data allocation, data labeling&cleaning, hyperparameters strategy, scaling law, curriculum learning, annealing, training optimization(deepspeed&megatron), training experiments, loss tracking&logging
