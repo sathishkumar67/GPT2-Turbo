@@ -29,7 +29,7 @@ DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "8/checkpoint.pth"
+MODEL_FILENAME = "9/checkpoint.pth"
 
 # checkpoint load flag to load the model and optimizer states if needed
 LOAD_CHECKPOINT = True
@@ -51,7 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[195035138:219414531]
+tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[219414530:243793923]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 
 if LOAD_CHECKPOINT:
@@ -104,23 +104,23 @@ def trainer(rank, world_size):
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         print('Optimizer loaded....')
 
-    # setting the total steps and warmup steps for the scheduler
-    config.steps_per_epoch = len(dataloader)
-    config.total_steps = (config.steps_per_epoch * config.epochs)//config.gradient_accumulation_steps
-    config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
+    # # setting the total steps and warmup steps for the scheduler
+    # config.steps_per_epoch = len(dataloader)
+    # config.total_steps = (config.steps_per_epoch * config.epochs)//config.gradient_accumulation_steps
+    # config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
 
-    if master_process:
-        print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
-        print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
+    # if master_process:
+    #     print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
+    #     print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
 
-    # Warmup scheduler
-    warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
+    # # Warmup scheduler
+    # warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
 
-    # Cosine annealing after warmup
-    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=config.total_steps - config.warmup_steps, eta_min=config.eta_min)
+    # # Cosine annealing after warmup
+    # cosine_scheduler = CosineAnnealingLR(optimizer, T_max=config.total_steps - config.warmup_steps, eta_min=config.eta_min)
     
-    # Combine warmup and cosine
-    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
+    # # Combine warmup and cosine
+    # scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
 
     # Training Loop 
     model.train()
@@ -156,7 +156,7 @@ def trainer(rank, world_size):
                 optimizer.step()
 
                 # Update learning rate for the next iteration
-                scheduler.step()
+                # scheduler.step()
                 
                 # Zero gradients for next iteration
                 optimizer.zero_grad()
