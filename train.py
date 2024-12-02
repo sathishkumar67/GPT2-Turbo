@@ -90,7 +90,7 @@ def trainer(rank, world_size):
     # prepare the evaluation dataset  
     eval_dataset = TokenDataset(config.block_size, eval_tokens)
     eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
 
 
     # Initialize the model with the configuration 
@@ -137,7 +137,7 @@ def trainer(rank, world_size):
         eval_sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training
 
         loss_accum , val_loss_accum, start_time = 0.0, 0.0, time.time()  
-        iterator = tqdm(enumerate(dataloader), total=config.total_steps, desc="Training", postfix={"Epoch": epoch, "train_loss": 0.0, "val_loss": 0.0, "grad_norm": 0.0, "time": 0.0}, dynamic_ncols=True)
+        iterator = tqdm(enumerate(dataloader), total=config.total_steps, desc="Training")
         
         for batch, (inputs, labels) in iterator:
             gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
@@ -179,7 +179,7 @@ def trainer(rank, world_size):
                     for _, (inputs, labels) in enumerate(eval_dataloader):
                         inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
                         _, val_loss = model(inputs, labels)
-                        val_loss_accum += val_loss.detach()
+                        val_loss_accum += val_loss.detach()/len(eval_dataloader)
                     model.train()
 
                 # all-reduce the metrics
@@ -191,8 +191,9 @@ def trainer(rank, world_size):
                 end_time = time.time() - start_time
 
                 if master_process:
-                    iterator.set_postfix({"Epoch": epoch, "train_loss": loss_accum.item(), "val_loss": val_loss_accum.item(), "grad_norm": grad_norm.item(), "time": end_time})
-            
+                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Val Loss: {val_loss_accum.item()}, Grad Norm: {grad_norm.item()}, Time: {end_time}")
+
+                # Reset accumulators
                 loss_accum, val_loss_accum, grad_norm, start_time = 0.0, 0.0, None, time.time()
             
 
