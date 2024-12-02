@@ -52,7 +52,7 @@ elif DO_DATASET_DOWNLOAD:
 
 # Load the training dataset and eval dataset
 tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[219414530:243793923]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[:100000]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[:1000000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
 
@@ -157,9 +157,6 @@ def trainer(rank, world_size):
                 # Backward pass
                 loss.backward() # Calculate gradients
 
-            # evaluate the model on the evaluation dataset
-            # if (batch + 1) % 25 == 0:
-
             if gradient_accum_cond:
                 # Gradient clipping before stepping
                 grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
@@ -196,7 +193,6 @@ def trainer(rank, world_size):
                     inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
                     _, val_loss = model(inputs, labels)
                     val_loss_accum += val_loss.detach()
-                model.train()
 
             # all-reduce the metrics
             dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
