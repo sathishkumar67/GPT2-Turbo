@@ -1,8 +1,14 @@
-# need to use mask's in attn block for pad tokens
-# some tokens are not making it to the training, use pad tokens for that, make drop last = False in both dataloader and sampler
-# need to implement pad tokens in dataset.py
-# need to check the sample output
+# need to use custom mask's in attn block for padding tokens
+# need to implement pad tokens in dataset.py if there are extra elements
+# need to take samples from the model
 # need to download hello swag dataset for eval
-# need to use seperate eval dataset for eval checking
 
-data allocation, data labeling&cleaning, hyperparameters strategy, scaling law, curriculum learning, annealing, training optimization(deepspeed&megatron), training experiments, loss tracking&logging
+1. data allocation
+2. data labeling and cleaning
+3. hyperparameters strategy
+4. scaling law
+5. curriculum learning,
+6. annealing,
+7. training optimization(deepspeed & megatron),
+8. training experiments,
+9. loss tracking & logging
