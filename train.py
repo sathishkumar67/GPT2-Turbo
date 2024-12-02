@@ -136,11 +136,10 @@ def trainer(rank, world_size):
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         eval_sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training
 
-        loss_accum , val_loss_accum, start_time = 0.0, 0.0, time.time() # Initialize accumulators
+        loss_accum, start_time = 0.0, time.time() # Initialize accumulators
         
         for batch, (inputs, labels) in enumerate(dataloader):
             gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
-            model.require_backward_grad_sync = gradient_accum_cond
  
             # Move data to device
             inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
@@ -153,9 +152,10 @@ def trainer(rank, world_size):
 
             # Accumulate loss
             loss_accum += loss.detach()
-
-            # Backward pass
-            loss.backward() # Calculate gradients
+            
+            with model.no_sync() if not gradient_accum_cond else torch.enable_grad():
+                # Backward pass
+                loss.backward() # Calculate gradients
 
             # evaluate the model on the evaluation dataset
             # if (batch + 1) % 25 == 0:
@@ -173,29 +173,39 @@ def trainer(rank, world_size):
                 # Zero gradients for next iteration
                 optimizer.zero_grad()
 
-                with torch.no_grad():
-                    model.eval()
-                    for _, (inputs, labels) in enumerate(eval_dataloader):
-                        inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-                        _, val_loss = model(inputs, labels)
-                        val_loss_accum += val_loss.detach()/len(eval_dataloader)
-                    model.train()
-
                 # all-reduce the metrics
                 dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
-                dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
                 dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)
 
                 # time taken for the gradient accumulation step
                 end_time = time.time() - start_time
 
                 if master_process:
-                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Val Loss: {val_loss_accum.item()}, Grad Norm: {grad_norm.item()}, Time: {end_time}")
+                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Grad Norm: {grad_norm.item()}, Time: {end_time}")
 
                 # Reset accumulators
-                loss_accum, val_loss_accum, grad_norm, start_time = 0.0, 0.0, None, time.time()
-            
+                loss_accum, grad_norm, start_time = 0.0, None, time.time()
 
+        try:
+            # Validation Loop
+            val_loss_accum = 0.0
+            # Evaluate the model on the evaluation dataset
+            with torch.no_grad():
+                model.eval()
+                for _, (inputs, labels) in enumerate(eval_dataloader):
+                    inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
+                    _, val_loss = model(inputs, labels)
+                    val_loss_accum += val_loss.detach()
+                model.train()
+
+            # all-reduce the metrics
+            dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+
+            if master_process:
+                print(f"Epoch: {epoch}, Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
+                
+        except Exception as e:
+            print(f"Exception: {e}")
             
     # Save the model and optimizer states            
     if master_process:
@@ -220,9 +230,8 @@ def run_ddp_training():
 
 
 if __name__ == "__main__":
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(torch.cuda.device_count())  # Total number of GPUs on this node
-    os.environ['RANK'] = '0'  # Rank 0 for a single-node setup
+    print(f"{str(torch.cuda.device_count())} GPUs available")
 
+    # Run distributed training
     run_ddp_training()

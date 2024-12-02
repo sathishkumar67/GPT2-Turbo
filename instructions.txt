@@ -2,6 +2,7 @@
 # need to implement pad tokens in dataset.py if there are extra elements
 # need to take samples from the model
 # need to download hello swag dataset for eval
+# use tqdm for print stats
 
 1. data allocation
 2. data labeling and cleaning
