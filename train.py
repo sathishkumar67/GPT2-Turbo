@@ -52,7 +52,7 @@ elif DO_DATASET_DOWNLOAD:
 
 # Load the training dataset and eval dataset
 tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[219414530:243793923]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[:100000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
 
@@ -136,10 +136,9 @@ def trainer(rank, world_size):
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
         eval_sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training
 
-        loss_accum , val_loss_accum, start_time = 0.0, 0.0, time.time()  
-        iterator = tqdm(enumerate(dataloader), total=config.total_steps, desc="Training")
+        loss_accum , val_loss_accum, start_time = 0.0, 0.0, time.time() # Initialize accumulators
         
-        for batch, (inputs, labels) in iterator:
+        for batch, (inputs, labels) in enumerate(dataloader):
             gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
             model.require_backward_grad_sync = gradient_accum_cond
  
