@@ -160,13 +160,6 @@ def trainer(rank, world_size):
 
             # evaluate the model on the evaluation dataset
             # if (batch + 1) % 25 == 0:
-            with torch.no_grad():
-                    model.eval()
-                    for _, (inputs, labels) in enumerate(eval_dataloader):
-                        inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-                        _, val_loss = model(inputs, labels)
-                        val_loss_accum += val_loss.detach()
-                    model.train()
 
             if gradient_accum_cond:
                 # Gradient clipping before stepping
@@ -181,13 +174,21 @@ def trainer(rank, world_size):
                 # Zero gradients for next iteration
                 optimizer.zero_grad()
 
-                # time taken for the gradient accumulation step
-                end_time = time.time() - start_time
+                with torch.no_grad():
+                    model.eval()
+                    for _, (inputs, labels) in enumerate(eval_dataloader):
+                        inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
+                        _, val_loss = model(inputs, labels)
+                        val_loss_accum += val_loss.detach()
+                    model.train()
 
                 # all-reduce the metrics
                 dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
                 dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
                 dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)
+
+                # time taken for the gradient accumulation step
+                end_time = time.time() - start_time
 
                 if master_process:
                     iterator.set_postfix({"Epoch": epoch, "train_loss": loss_accum.item(), "val_loss": val_loss_accum.item(), "grad_norm": grad_norm.item(), "time": end_time})
