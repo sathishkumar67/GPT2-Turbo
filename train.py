@@ -4,6 +4,7 @@ import gin
 import torch
 import time
 import numpy as np
+from tqdm import tqdm
 import torch.distributed
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -13,26 +14,26 @@ from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
-# import warnings
-# warnings.filterwarnings("ignore")
-
 
 # checking if need to download the dataset and model files
 DO_DATASET_DOWNLOAD = True
 DO_MODEL_DOWNLOAD = True  
+LOAD_CHECKPOINT = True # checkpoint load flag to load the model and optimizer states if needed
 
-# preparing the dataset
-DATA_REPO_ID = "pt-sk/pretraining-dataset"
-DATA_REPO_TYPE = "dataset"
-DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
+# preparing the training dataset
+TRAIN_DATA_REPO_ID = "pt-sk/pretraining-dataset"
+TRAIN_DATA_REPO_TYPE = "dataset"
+TRAIN_DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
+
+# preparing the evaluation dataset
+EVAL_DATA_REPO_ID = "pt-sk/pretraining-dataset"
+EVAL_DATA_REPO_TYPE = "dataset"
+EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
 MODEL_FILENAME = "9/checkpoint.pth"
-
-# checkpoint load flag to load the model and optimizer states if needed
-LOAD_CHECKPOINT = True
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -40,19 +41,20 @@ LOCAL_DIR = "/kaggle/working"
 
 # Download the dataset and model files if needed
 if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
-    hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+    hf_hub_download(repo_id=TRAIN_DATA_REPO_ID, filename=TRAIN_DATA_FILENAME, repo_type=TRAIN_DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+    hf_hub_download(repo_id=EVAL_DATA_REPO_ID, filename=EVAL_DATA_FILENAME, repo_type=EVAL_DATA_REPO_TYPE, local_dir=LOCAL_DIR)
     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
 
 elif DO_DATASET_DOWNLOAD:
-    hf_hub_download(repo_id=DATA_REPO_ID, filename=DATA_FILENAME, repo_type=DATA_REPO_TYPE, local_dir=LOCAL_DIR)
-
-# elif DO_MODEL_DOWNLOAD:
-#     hf_hub_download(repo_id=MODEL_REPO_ID, filename=MODEL_FILENAME, repo_type=MODEL_REPO_TYPE, local_dir=LOCAL_DIR)
+    hf_hub_download(repo_id=TRAIN_DATA_REPO_ID, filename=TRAIN_DATA_FILENAME, repo_type=TRAIN_DATA_REPO_TYPE, local_dir=LOCAL_DIR)
+    hf_hub_download(repo_id=EVAL_DATA_REPO_ID, filename=EVAL_DATA_FILENAME, repo_type=EVAL_DATA_REPO_TYPE, local_dir=LOCAL_DIR)
 
 
-# Load the dataset
-tokens = np.load(f"{LOCAL_DIR}/{DATA_FILENAME}", allow_pickle=True)[219414530:243793923]
+# Load the training dataset and eval dataset
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[219414530:243793923]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)
 print(f"Dataset loaded with {len(tokens)} tokens....")
+print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
@@ -80,13 +82,17 @@ def trainer(rank, world_size):
     torch.cuda.set_device(rank)
     config.model_device = torch.device("cuda", rank) # Set the device for the current process
 
-    # Create DataLoader
+    # prepare the training dataset
     dataset = TokenDataset(config.block_size, tokens)
-    # Use DistributedSampler to partition data among distributed processes
-    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
-    # Use DataLoader to manage batches
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True)
-        
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True) # Use DistributedSampler to partition data among distributed processes
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True) # Use DataLoader to manage batches
+    
+    # prepare the evaluation dataset  
+    eval_dataset = TokenDataset(config.block_size, eval_tokens)
+    eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True)
+
+
     # Initialize the model with the configuration 
     model = GPT(config)
     if LOAD_CHECKPOINT:
@@ -103,6 +109,7 @@ def trainer(rank, world_size):
         # Load the optimizer state
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         print('Optimizer loaded....')
+
 
     # setting the total steps and warmup steps for the scheduler
     config.steps_per_epoch = len(dataloader)
@@ -122,14 +129,17 @@ def trainer(rank, world_size):
     # Combine warmup and cosine
     scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
 
+
     # Training Loop 
-    model.train()
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
+        model.train()
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
+        eval_sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training
+
+        loss_accum , val_loss_accum, start_time = 0.0, 0.0, time.time()  
+        iterator = tqdm(enumerate(dataloader), total=config.total_steps, desc="Training", postfix={"Epoch": epoch, "train_loss": 0.0, "val_loss": 0.0, "grad_norm": 0.0, "time": 0.0}, dynamic_ncols=True)
         
-        loss_accum = 0.0
-        start_time = time.time()  
-        for batch, (inputs, labels) in enumerate(dataloader):
+        for batch, (inputs, labels) in iterator:
             gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
             model.require_backward_grad_sync = gradient_accum_cond
  
@@ -146,7 +156,17 @@ def trainer(rank, world_size):
             loss_accum += loss.detach()
 
             # Backward pass
-            loss.backward()
+            loss.backward() # Calculate gradients
+
+            # evaluate the model on the evaluation dataset
+            # if (batch + 1) % 25 == 0:
+            with torch.no_grad():
+                    model.eval()
+                    for _, (inputs, labels) in enumerate(eval_dataloader):
+                        inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
+                        _, loss = model(inputs, labels)
+                        val_loss_accum += loss.detach()
+                    model.train()
 
             if gradient_accum_cond:
                 # Gradient clipping before stepping
@@ -164,19 +184,23 @@ def trainer(rank, world_size):
                 # time taken for the gradient accumulation step
                 end_time = time.time() - start_time
 
-                if master_process:
-                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Gradient Norm: {grad_norm.item()}, Time Spent: {round(end_time, 2)} seconds")
+                # all-reduce the metrics
+                dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
+                dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+                dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)
 
-                loss_accum = 0.0
-                grad_norm = None
-                start_time = time.time()
+                if master_process:
+                    iterator.set_postfix({"Epoch": epoch, "train_loss": loss_accum.item(), "val_loss": val_loss_accum.item(), "grad_norm": grad_norm.item(), "time": end_time})
+            
+                loss_accum, val_loss_accum, grad_norm, start_time = 0.0, 0.0, None, time.time()
+            
 
             
     # Save the model and optimizer states            
     if master_process:
         torch.save(
             {
-                "name": f"{DATA_FILENAME}_{len(tokens)}",
+                "name": f"{TRAIN_DATA_FILENAME}_{len(tokens)}",
                 "steps": config.total_steps,
                 "model_state_dict": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
