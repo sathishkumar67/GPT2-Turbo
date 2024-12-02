@@ -104,23 +104,23 @@ def trainer(rank, world_size):
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         print('Optimizer loaded....')
 
-    # # setting the total steps and warmup steps for the scheduler
-    # config.steps_per_epoch = len(dataloader)
-    # config.total_steps = (config.steps_per_epoch * config.epochs)//config.gradient_accumulation_steps
-    # config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
+    # setting the total steps and warmup steps for the scheduler
+    config.steps_per_epoch = len(dataloader)
+    config.total_steps = (config.steps_per_epoch * config.epochs)//config.gradient_accumulation_steps
+    config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
 
-    # if master_process:
-    #     print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
-    #     print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
+    if master_process:
+        print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
+        print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
 
-    # # Warmup scheduler
-    # warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
+    # Warmup scheduler
+    warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: step / config.warmup_steps)
 
-    # # Cosine annealing after warmup
-    # cosine_scheduler = CosineAnnealingLR(optimizer, T_max=config.total_steps - config.warmup_steps, eta_min=config.eta_min)
+    # Cosine annealing after warmup
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=config.total_steps - config.warmup_steps, eta_min=config.eta_min)
     
-    # # Combine warmup and cosine
-    # scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
+    # Combine warmup and cosine
+    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
 
     # Training Loop 
     model.train()
@@ -156,7 +156,7 @@ def trainer(rank, world_size):
                 optimizer.step()
 
                 # Update learning rate for the next iteration
-                # scheduler.step()
+                scheduler.step()
                 
                 # Zero gradients for next iteration
                 optimizer.zero_grad()
