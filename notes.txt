@@ -20,6 +20,4 @@
 
 with gradient_accumulation_steps = 32 instead of 8 
 9th Phase: Tokens up to 219,414,531
-
-not using the lr scheduler
 10 phase: Tokens upto 243793923
