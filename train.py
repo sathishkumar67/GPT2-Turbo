@@ -164,8 +164,8 @@ def trainer(rank, world_size):
                     model.eval()
                     for _, (inputs, labels) in enumerate(eval_dataloader):
                         inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-                        _, loss = model(inputs, labels)
-                        val_loss_accum += loss.detach()
+                        _, val_loss = model(inputs, labels)
+                        val_loss_accum += val_loss.detach()
                     model.train()
 
             if gradient_accum_cond:
