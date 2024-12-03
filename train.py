@@ -33,7 +33,7 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "9/checkpoint.pth"
+MODEL_FILENAME = "10/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -51,8 +51,8 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[219414530:243793923]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[:1000000]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[243793922:268173315]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[1000000:2000000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
 
@@ -134,7 +134,6 @@ def trainer(rank, world_size):
     for epoch in range(config.epochs) :  # Loop over the dataset multiple times
         model.train()
         sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
-        eval_sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training
 
         loss_accum, start_time = 0.0, time.time() # Initialize accumulators
         
@@ -183,25 +182,25 @@ def trainer(rank, world_size):
                 # Reset accumulators
                 loss_accum, grad_norm, start_time = 0.0, None, time.time()
 
-        try:
-            # Validation Loop
-            val_loss_accum = 0.0
-            # Evaluate the model on the evaluation dataset
-            with torch.no_grad():
-                model.eval()
-                for _, (inputs, labels) in enumerate(eval_dataloader):
-                    inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-                    _, val_loss = model(inputs, labels)
-                    val_loss_accum += val_loss.detach()
+    try:
+        # Validation Loop
+        val_loss_accum = 0.0
+        # Evaluate the model on the evaluation dataset
+        with torch.no_grad():
+            model.eval()
+            for _, (inputs, labels) in enumerate(eval_dataloader):
+                inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
+                _, val_loss = model(inputs, labels)
+                val_loss_accum += val_loss.detach()
 
-            # all-reduce the metrics
-            dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+        # all-reduce the metrics
+        dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
 
-            if master_process:
-                print(f"Epoch: {epoch}, Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
-                
-        except Exception as e:
-            print(f"Exception: {e}")
+        if master_process:
+            print(f"Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
+            
+    except Exception as e:
+        print(f"Exception: {e}")
             
     # Save the model and optimizer states            
     if master_process:
