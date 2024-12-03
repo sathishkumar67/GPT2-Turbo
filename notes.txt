@@ -22,3 +22,4 @@ with gradient_accumulation_steps = 32 instead of 8
 9th Phase: Tokens up to 219,414,531
 # using eval_dataset to track performance 
 10 phase: Tokens upto 243793923
+11 phase: Tokens upto 268173315
