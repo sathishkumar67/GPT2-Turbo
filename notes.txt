@@ -18,9 +18,11 @@
 7th Phase: Tokens up to 170,655,747
 8th Phase: Tokens up to 195,035,139
 
-with gradient_accumulation_steps = 32 instead of 8 
+# with gradient_accumulation_steps = 32 instead of 8 
 9th Phase: Tokens up to 219,414,531
+
 # using eval_dataset to track performance 
-10 phase: Tokens upto 243793923
-11 phase: Tokens upto 268173315
-12 phase: Tokens upto 292552707
+10 phase: Tokens upto 243793923, val checking from 1000000 to 2000000
+11 phase: Tokens upto 268173315, val checking from 1000000 to 2000000
+12 phase: Tokens upto 292552707, val checking from 2000000 to 3000000
+13 phase: Tokens upto 316932099, val checking from 3000000 to 4000000
