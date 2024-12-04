@@ -33,7 +33,7 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "11/checkpoint.pth"
+MODEL_FILENAME = "12/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -51,8 +51,8 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[268173314:292552707]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[2000000:3000000]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[292552706:316932099]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[3000000:4000000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
 
@@ -86,21 +86,15 @@ def trainer(rank, world_size):
     dataset = TokenDataset(config.block_size, tokens)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True) # Use DistributedSampler to partition data among distributed processes
     dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True) # Use DataLoader to manage batches
-    
-    # prepare the evaluation dataset  
-    eval_dataset = TokenDataset(config.block_size, eval_tokens)
-    eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
-
 
     # Initialize the model with the configuration 
     model = GPT(config)
     if LOAD_CHECKPOINT:
         # Load the model state
         model.load_state_dict(checkpoint["model_state_dict"])
-        print('Model loaded....')
+        print(f'{rank}: Model loaded....')
 
-    model.to(config.dtype).to(config.model_device)  # Move model to respective device
+    model.to(config.dtype).to(config.model_device)  # Move model to respective device and change the datatype to bfloat16
     model = DDP(model, device_ids=[rank])  # Wrap model in DDP
     
     # Define Optimizer    
@@ -108,7 +102,7 @@ def trainer(rank, world_size):
     if LOAD_CHECKPOINT:
         # Load the optimizer state
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        print('Optimizer loaded....')
+        print(f'{rank}: Optimizer loaded....')
 
 
     # setting the total steps and warmup steps for the scheduler
@@ -182,28 +176,30 @@ def trainer(rank, world_size):
                 # Reset accumulators
                 loss_accum, grad_norm, start_time = 0.0, None, time.time()
 
-    try:
-        # Validation Loop
-        val_loss_accum = 0.0
-        # Evaluate the model on the evaluation dataset
-        with torch.no_grad():
-            model.eval()
-            for _, (inputs, labels) in enumerate(eval_dataloader):
-                inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-                _, val_loss = model(inputs, labels)
-                val_loss_accum += val_loss.detach()
 
-        # all-reduce the metrics
-        dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+    # prepare the evaluation dataset  
+    eval_dataset = TokenDataset(config.block_size, eval_tokens)
+    eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
 
-        if master_process:
-            print(f"Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
-            
-    except Exception as e:
-        print(f"Exception: {e}")
-            
+    # Validation Loop
+    val_loss_accum = 0.0
+    # Evaluate the model on the evaluation dataset
+    with torch.no_grad():
+        model.eval()
+        for _, (inputs, labels) in enumerate(eval_dataloader):
+            inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
+            _, val_loss = model(inputs, labels)
+            val_loss_accum += val_loss.detach()
+
+    # all-reduce the metrics
+    dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+
     # Save the model and optimizer states            
     if master_process:
+        print(f"Length of Eval Dataloader: {len(eval_dataloader)}")
+        print(f"Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
+
         torch.save(
             {
                 "name": f"{TRAIN_DATA_FILENAME}_{len(tokens)}",
