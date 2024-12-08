@@ -7,25 +7,15 @@ from typing import Tuple, List
 
 
 class TokenDataset(Dataset): # need to pad tokens if the length is less than the block size
-    def __init__(self, block_size: int, input_ids: List[int], pad_token_id: int) -> None:
+    def __init__(self, block_size: int, input_ids: List[int]) -> None:
         """
         Initializes the TokenDataset.
 
         Args:
             block_size: The block size for dividing the input data.
             input_ids: A list containing tokenized input data.
-            pad_token_id: The token ID used for padding.
         """
         self.block_size = block_size
-        self.pad_token_id = pad_token_id
-                
-        # Pad input_ids to make its length a multiple of block_size
-        remainder = len(input_ids) % block_size
-        if remainder != 0:
-            padding_length = block_size - remainder # calculate the padding length
-            input_ids.extend([pad_token_id] * padding_length) # pad the input_ids with pad_token_id to make the length a multiple of block_size
-
-        # Store the input_ids
         self.input_ids = input_ids
 
     def __len__(self) -> int:
