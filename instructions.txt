@@ -1,5 +1,5 @@
-# need to use custom mask's in attn block for padding tokens
-# need to implement pad tokens in dataset.py if there are extra elements
+# need to use custom mask's in attn block for padding tokens(need to check this out)
+# need to add extra tokens to check whether the pad tokens are working properly during training, instead of finding the batch_size for gradient_accumulation_steps, it must be dynamic
 # need to take samples from the model
 # need to download hello swag dataset for eval
 # use tqdm for print stats
