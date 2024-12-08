@@ -83,7 +83,7 @@ def trainer(rank, world_size):
     config.model_device = torch.device("cuda", rank) # Set the device for the current process
 
     # prepare the training dataset
-    dataset = TokenDataset(config.block_size, tokens, config.pad_token_id)
+    dataset = TokenDataset(config.block_size, tokens)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True) # Use DistributedSampler to partition data among distributed processes
     dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=8, persistent_workers=True) # Use DataLoader to manage batches
 
@@ -178,7 +178,7 @@ def trainer(rank, world_size):
 
 
     # prepare the evaluation dataset  
-    eval_dataset = TokenDataset(config.block_size, eval_tokens, config.pad_token_id)
+    eval_dataset = TokenDataset(config.block_size, eval_tokens)
     eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
     eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
 
