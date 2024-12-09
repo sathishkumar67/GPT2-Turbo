@@ -3,7 +3,10 @@ import torch
 from torch.utils.data import Dataset
 from typing import Tuple, List
 
-class TokenDataset(Dataset): # need to pad tokens if the length is less than the block size
+class TokenDataset(Dataset): 
+    """
+    A  dataset for tokenized input data.
+    """
     def __init__(self, block_size: int, input_ids: List[int], pad_token_id: int) -> None:
         """
         Initializes the TokenDataset.
