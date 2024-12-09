@@ -52,7 +52,7 @@ elif DO_DATASET_DOWNLOAD:
 
 # Load the training dataset and eval dataset
 tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[390070274:414449667]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[600000:1000000]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[600000:900000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
 
@@ -176,30 +176,34 @@ def trainer(rank, world_size):
                 # Reset accumulators
                 loss_accum, grad_norm, start_time = 0.0, None, time.time()
 
+    try:
+        # prepare the evaluation dataset  
+        eval_dataset = TokenDataset(config.block_size, eval_tokens, config.pad_token_id)
+        eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
+        eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
 
-    # prepare the evaluation dataset  
-    eval_dataset = TokenDataset(config.block_size, eval_tokens, config.pad_token_id)
-    eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
+        # Validation Loop
+        val_loss_accum = 0.0
+        # Evaluate the model on the evaluation dataset
+        with torch.no_grad():
+            model.eval()
+            for _, (inputs, labels) in enumerate(eval_dataloader):
+                inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
+                _, val_loss = model(inputs, labels)
+                val_loss_accum += val_loss.detach()
 
-    # Validation Loop
-    val_loss_accum = 0.0
-    # Evaluate the model on the evaluation dataset
-    with torch.no_grad():
-        model.eval()
-        for _, (inputs, labels) in enumerate(eval_dataloader):
-            inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-            _, val_loss = model(inputs, labels)
-            val_loss_accum += val_loss.detach()
+        # all-reduce the metrics
+        dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
 
-    # all-reduce the metrics
-    dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+        if master_process:
+            print(f"Length of Eval Dataloader: {len(eval_dataloader)}")
+            print(f"Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
+
+    except Exception as e:
+        print(f"Error in evaluation: {e}")
 
     # Save the model and optimizer states            
     if master_process:
-        print(f"Length of Eval Dataloader: {len(eval_dataloader)}")
-        print(f"Validation Loss: {val_loss_accum.item()/len(eval_dataloader)}")
-
         torch.save(
             {
                 "name": f"{TRAIN_DATA_FILENAME}_{len(tokens)}",
