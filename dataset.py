@@ -1,13 +1,14 @@
 from __future__ import annotations
 import torch
 from torch.utils.data import Dataset
-from typing import Tuple, List
+from typing import Tuple
+from numpy import ndarray
 
 class TokenDataset(Dataset): 
     """
     A  dataset for tokenized input data.
     """
-    def __init__(self, block_size: int, input_ids: List[int], pad_token_id: int) -> None:
+    def __init__(self, block_size: int, input_ids: ndarray, pad_token_id: int) -> None:
         """
         Initializes the TokenDataset.
 
@@ -17,7 +18,7 @@ class TokenDataset(Dataset):
             pad_token_id: The token ID to use for padding.
         """
         self.block_size = block_size
-        self.input_ids = input_ids
+        self.input_ids = input_ids.tolist()
         self.pad_token_id = pad_token_id
 
     def __len__(self) -> int:
