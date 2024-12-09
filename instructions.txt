@@ -5,6 +5,7 @@
 # use tqdm for print stats
 # use other datasets for pretraining
 # develop such it also runs on TPU
+# try out diff hyperparameters
 
 1. data allocation
 2. data labeling and cleaning
