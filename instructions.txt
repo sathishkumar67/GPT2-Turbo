@@ -3,6 +3,7 @@
 # need to take samples from the model
 # need to download hello swag dataset for eval
 # use tqdm for print stats
+# use other datasets for pretraining
 
 1. data allocation
 2. data labeling and cleaning
