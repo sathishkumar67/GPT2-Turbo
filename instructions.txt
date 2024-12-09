@@ -4,6 +4,7 @@
 # need to download hello swag dataset for eval
 # use tqdm for print stats
 # use other datasets for pretraining
+# develop such it also runs on TPU
 
 1. data allocation
 2. data labeling and cleaning
