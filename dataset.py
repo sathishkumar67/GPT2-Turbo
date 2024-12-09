@@ -3,31 +3,42 @@ import torch
 from torch.utils.data import Dataset
 from typing import Tuple, List
 
-
-
-
 class TokenDataset(Dataset): # need to pad tokens if the length is less than the block size
-    def __init__(self, block_size: int, input_ids: List[int]) -> None:
+    def __init__(self, block_size: int, input_ids: List[int], pad_token_id: int) -> None:
         """
         Initializes the TokenDataset.
 
         Args:
             block_size: The block size for dividing the input data.
             input_ids: A list containing tokenized input data.
+            pad_token_id: The token ID to use for padding.
         """
         self.block_size = block_size
         self.input_ids = input_ids
+        self.pad_token_id = pad_token_id
 
     def __len__(self) -> int:
         """
-        Returns the number of blocks in the dataset.
+        Returns the length of the dataset.
 
-        Since the input_ids are divided into blocks of size block_size, the number of
-        blocks is calculated as the length of the input_ids minus one, divided by the
-        block size.
+        If the length of the input_ids is divisible by the block size, it returns the
+        length of the input_ids divided by the block size. Otherwise, it returns the
+        length of the input_ids after padding to the block size.
+
+        Returns:
+            The length of the dataset.
         """
-        return (len(self.input_ids) - 1) // self.block_size
-
+        if (len(self.input_ids) - 1) % self.block_size == 0:
+            print("The length of the input_ids is divisible by the block size")
+            return (len(self.input_ids) - 1) // self.block_size
+        
+        else:
+            remainder = (len(self.input_ids) - 1) % self.block_size
+            padding_length = self.block_size - remainder
+            self.input_ids.extend([self.pad_token_id] * padding_length)
+            print("The length of the input_ids is not divisible by the block size")
+            return (len(self.input_ids) - 1) // self.block_size
+        
     def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor]:     
         """
         Returns a tuple of two tensors, x and y, where x is the input tensor slice
