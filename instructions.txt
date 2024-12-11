@@ -1,11 +1,11 @@
 # need to use custom mask's in attn block for padding tokens(need to check this out)
 # need to add extra tokens to check whether the pad tokens are working properly during training, instead of finding the batch_size for gradient_accumulation_steps, it must be dynamic
 # need to take samples from the model
-# need to download hello swag dataset for eval
-# use tqdm for print stats
-# use other datasets for pretraining
 # develop such it also runs on TPU
 # try out diff hyperparameters
+# use tqdm for print stats(not currently needed)
+# need to download hello swag dataset for eval(not yet, still need to train longer using diverse dataset for robust training)
+# use other datasets for pretraining(after using all the tokens in the current pretraining set)
 
 1. data allocation
 2. data labeling and cleaning
