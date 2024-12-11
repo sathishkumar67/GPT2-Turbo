@@ -28,3 +28,6 @@
 13 phase: Tokens upto 316932099, val checking from 3000000 to 4000000
 14 phase: Tokens upto 341311491, val checking from 4000000 to 5000000
 15 phase: Tokens upto 365690883, val checking dev split to 300000
+
+continued each phase by using subsequent 24,379,393 tokens for training and val split as some random slicing
+tried using pad token id for dataset it did not work correctly
