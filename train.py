@@ -28,12 +28,12 @@ TRAIN_DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
 # preparing the evaluation dataset
 EVAL_DATA_REPO_ID = "pt-sk/pretraining-dataset"
 EVAL_DATA_REPO_TYPE = "dataset"
-EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-dev_split.npy"
+EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "22/checkpoint.pth"
+MODEL_FILENAME = "23/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -51,7 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[536346626:560726019]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[560726018:585105411]
 eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[1000000:1900000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
