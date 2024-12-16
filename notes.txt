@@ -9,25 +9,17 @@
     # training with warmup then cosine decay cycle = 1
 
 # using same setting
-1st Phase: Tokens up to 24,379,393
-2nd Phase: Tokens up to 48,758,786
-3rd Phase: Tokens up to 73,138,179
-4th Phase: Tokens up to 97,517,569
-5th Phase: Tokens up to 121,896,961
-6th Phase: Tokens up to 146,276,353
-7th Phase: Tokens up to 170,655,747
-8th Phase: Tokens up to 195,035,139
-
+    from 1st phase to 8th phase
+    
 # with gradient_accumulation_steps = 32 instead of 8 
-9th Phase: Tokens up to 219,414,531
+    from 10 phase
+    same tokens length
+    same schedule
 
-# using eval_dataset to track performance 
-10 phase: Tokens upto 243793923, val checking from 1000000 to 2000000
-11 phase: Tokens upto 268173315, val checking from 1000000 to 2000000
-12 phase: Tokens upto 292552707, val checking from 2000000 to 3000000
-13 phase: Tokens upto 316932099, val checking from 3000000 to 4000000
-14 phase: Tokens upto 341311491, val checking from 4000000 to 5000000
-15 phase: Tokens upto 365690883, val checking dev split to 300000
+# using eval_dataset to track performance
+    from 10th phase
+    continued each phase by using subsequent 24,379,393 tokens for training 
+    val split as some random slicing
+    same schedule
 
-continued each phase by using subsequent 24,379,393 tokens for training and val split as some random slicing
-tried using pad token id for dataset it did not work correctly
+# increasing the no of training tokens from 24379393 to 26738688 from 25th phase
