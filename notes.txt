@@ -23,4 +23,4 @@
     same schedule
 
 # increasing the no of training tokens from 24379393 to 26738688 from 25th phase
-# increasing the no of training tokens from 26738688 to 28049408 from 26th phase
+# increasing the no of training tokens from 26738688 to 30146560 from 26th phase
