@@ -51,7 +51,7 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[611844098:639893506]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[611844098:641990659]
 eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[2500000:3000000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
