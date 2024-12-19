@@ -109,7 +109,7 @@ def trainer(rank, world_size):
 
     if master_process:
         # print loaded checkpoint if load checkpoint is True
-        print(torch.nn.attention.sdpa_kernel)
+        print(torch.nn.attention.sdpa_kernel())
         print(f"Dataset loaded with {len(tokens)} tokens....")
         print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
         print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
