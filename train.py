@@ -53,6 +53,9 @@ elif DO_DATASET_DOWNLOAD:
 # Load the training dataset and eval dataset
 tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[672137218:702283779]
 eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[3500000:4000000]
+print(f"Dataset loaded with {len(tokens)} tokens....")
+print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
+        
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
@@ -109,9 +112,6 @@ def trainer(rank, world_size):
 
     if master_process:
         # print loaded checkpoint if load checkpoint is True
-        print(torch.nn.attention.sdpa_kernel())
-        print(f"Dataset loaded with {len(tokens)} tokens....")
-        print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
         print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
         print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
 
