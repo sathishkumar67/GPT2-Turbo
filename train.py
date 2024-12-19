@@ -33,7 +33,7 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "26/checkpoint.pth"
+MODEL_FILENAME = "27/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -51,16 +51,13 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[641990658:672137219]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[3000000:3500000]
-print(f"Dataset loaded with {len(tokens)} tokens....")
-print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[672137218:702283779]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[3500000:4000000]
 
 if LOAD_CHECKPOINT:
     # load the checkpoint
     checkpoint = torch.load(f"{LOCAL_DIR}/{MODEL_FILENAME}", weights_only=True, map_location="cpu")
-    print('Checkpoint loaded....')
-
+    print("Checkpoint loaded....")
 
 def trainer(rank, world_size):
     # Enable the cudnn backend for better performance
@@ -111,6 +108,10 @@ def trainer(rank, world_size):
     config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
 
     if master_process:
+        # print loaded checkpoint if load checkpoint is True
+        print(torch.nn.attention.sdpa_kernel)
+        print(f"Dataset loaded with {len(tokens)} tokens....")
+        print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
         print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
         print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
 
