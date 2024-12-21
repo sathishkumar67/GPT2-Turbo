@@ -24,3 +24,8 @@
 
 # increasing the no of training tokens from 24379393 to 26738688 from 25th phase
 # increasing the no of training tokens from 26738688 to 30146560 from 26th phase
+
+# completed the CC-MAIN-2013-20---000_00000.npy dataset(ran for 29 phases)
+# starting next phase training
+    using CC-MAIN-2013-20---000_00001.npy dataset(preprocessed the dataset)
+    changed the betas parameters from (0.9, 0.97) to (0.9, 0.999)
