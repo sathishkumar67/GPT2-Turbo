@@ -4,7 +4,6 @@ import gin
 import torch
 import time
 import numpy as np
-# from tqdm import tqdm
 import torch.distributed
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -14,6 +13,8 @@ from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset
+# from tqdm import tqdm
+
 
 # checking if need to download the dataset and model files
 DO_DATASET_DOWNLOAD = True
@@ -23,7 +24,7 @@ LOAD_CHECKPOINT = True # checkpoint load flag to load the model and optimizer st
 # preparing the training dataset
 TRAIN_DATA_REPO_ID = "pt-sk/pretraining-dataset"
 TRAIN_DATA_REPO_TYPE = "dataset"
-TRAIN_DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00000.npy"
+TRAIN_DATA_FILENAME = "tokens/CC-MAIN-2013-20---000_00001.npy"
 
 # preparing the evaluation dataset
 EVAL_DATA_REPO_ID = "pt-sk/pretraining-dataset"
@@ -33,7 +34,7 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "28/checkpoint.pth"
+MODEL_FILENAME = "29/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -51,8 +52,8 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[702283778:732430338]
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[4000000:4500000]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[:30146561]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[:1000000]
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
         
