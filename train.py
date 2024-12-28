@@ -12,7 +12,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
-from dataset import TokenDataset
+from dataset import TokenDataset, process_input_ids
 # from tqdm import tqdm
 
 
@@ -82,6 +82,9 @@ def trainer(rank, world_size):
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
     config.model_device = torch.device("cuda", rank) # Set the device for the current process
+
+    # process the input_ids(tokens) to ensure their length is divisible by block_size
+    tokens = process_input_ids(tokens, config.block_size, config.pad_token_id)
 
     # prepare the training dataset
     dataset = TokenDataset(config.block_size, tokens)
@@ -179,6 +182,9 @@ def trainer(rank, world_size):
                 loss_accum, grad_norm, start_time = 0.0, None, time.time()
 
     try:
+        # process the eval_tokens to ensure their length is divisible by block_size
+        eval_tokens = process_input_ids(eval_tokens, config.block_size, config.pad_token_id)
+
         # prepare the evaluation dataset  
         eval_dataset = TokenDataset(config.block_size, eval_tokens)
         eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
