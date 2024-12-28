@@ -53,7 +53,13 @@ elif DO_DATASET_DOWNLOAD:
 
 # Load the training dataset and eval dataset
 tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[120586240:150732801]
+# process the input_ids(tokens) to ensure their length is divisible by block_size
+tokens = process_input_ids(tokens, 1024, 100278)
+
 eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[4000000:5000000]
+# process the eval_tokens to ensure their length is divisible by block_size
+eval_tokens = process_input_ids(eval_tokens, 1024, 100278)
+
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
         
@@ -82,9 +88,6 @@ def trainer(rank, world_size):
     # Set the Device for the Current Process
     torch.cuda.set_device(rank)
     config.model_device = torch.device("cuda", rank) # Set the device for the current process
-
-    # process the input_ids(tokens) to ensure their length is divisible by block_size
-    tokens = process_input_ids(tokens, config.block_size, config.pad_token_id)
 
     # prepare the training dataset
     dataset = TokenDataset(config.block_size, tokens)
@@ -182,9 +185,6 @@ def trainer(rank, world_size):
                 loss_accum, grad_norm, start_time = 0.0, None, time.time()
 
     try:
-        # process the eval_tokens to ensure their length is divisible by block_size
-        eval_tokens = process_input_ids(eval_tokens, config.block_size, config.pad_token_id)
-
         # prepare the evaluation dataset  
         eval_dataset = TokenDataset(config.block_size, eval_tokens)
         eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
