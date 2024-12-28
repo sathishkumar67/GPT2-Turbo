@@ -39,6 +39,18 @@ MODEL_FILENAME = "33/checkpoint.pth"
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
 
+# set the training tokens
+training_start = 120586240
+training_end = 150732801
+
+# set the eval tokens
+eval_start = 4000000
+eval_end = 5000000
+
+# set the block size and padding token id
+block_size = 1024
+pad_token_id = 100278
+
 
 # Download the dataset and model files if needed
 if DO_DATASET_DOWNLOAD and DO_MODEL_DOWNLOAD:
@@ -52,13 +64,13 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[120586240:150732801]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[training_start:training_end]
 # process the input_ids(tokens) to ensure their length is divisible by block_size
-tokens = process_input_ids(tokens, 1024, 100278)
+tokens = process_input_ids(tokens, block_size, pad_token_id)
 
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[4000000:5000000]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[eval_start:eval_end]
 # process the eval_tokens to ensure their length is divisible by block_size
-eval_tokens = process_input_ids(eval_tokens, 1024, 100278)
+eval_tokens = process_input_ids(eval_tokens, block_size, pad_token_id)
 
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
