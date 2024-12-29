@@ -29,3 +29,7 @@
 # starting next phase training
     using CC-MAIN-2013-20---000_00001.npy dataset(preprocessed the dataset)
     changed the betas parameters from (0.9, 0.97) to (0.9, 0.999)
+
+# from 35th phase 
+    increasing the gradient_accumulation_steps from 32 to 128
+    changing tokens count from 30146560 to 29360128(which is perfectly divisible by 128)
