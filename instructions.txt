@@ -1,11 +1,10 @@
 # need to use custom mask's in attn block for padding tokens(need to check this out)
 # need to take samples from the model
 # develop such it also runs on TPU
-# try out diff hyperparameters(changed the betas parameter, need to try out others)
+# try out diff hyperparameters
 # use tqdm for print stats(not currently needed)
 # need to download hello swag dataset for eval(not yet, still need to train longer using diverse dataset for robust training)
 # use other datasets for pretraining(after using all the tokens in the current pretraining set)
-# use 64 grad accum steps
 
 
 1. data allocation
