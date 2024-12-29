@@ -34,18 +34,18 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "33/checkpoint.pth"
+MODEL_FILENAME = "34/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
 
 # set the training tokens
-training_start = 120586240
-training_end = 150732801
+training_start = 150732800   
+training_end = 180092929 
 
 # set the eval tokens
-eval_start = 4000000
-eval_end = 5000000
+eval_start = 5000000
+eval_end = 6000000
 
 # set the block size and padding token id
 block_size = 1024
@@ -199,8 +199,8 @@ def trainer(rank, world_size):
     try:
         # prepare the evaluation dataset  
         eval_dataset = TokenDataset(config.block_size, eval_tokens)
-        eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=True)
-        eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
+        eval_sampler = DistributedSampler(eval_dataset, num_replicas=world_size, rank=rank, shuffle=False) # removed drop_last=True and for dataloader also
+        eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, sampler=eval_sampler, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}")
 
         # Validation Loop
         val_loss_accum = 0.0
