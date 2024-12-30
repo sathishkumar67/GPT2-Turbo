@@ -11,8 +11,8 @@
 2. data labeling and cleaning
 3. hyperparameters strategy
 4. scaling law
-5. curriculum learning,
-6. annealing,
-7. training optimization(deepspeed & megatron),
-8. training experiments,
+5. curriculum learning
+6. annealing
+7. training optimization(deepspeed & megatron)
+8. training experiments
 9. loss tracking & logging
