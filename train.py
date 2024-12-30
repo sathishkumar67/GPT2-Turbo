@@ -34,22 +34,25 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "34/checkpoint.pth"
+MODEL_FILENAME = "35/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
 
+# set the tokens count 
+TRAIN_TOKENS_COUNT = 29360128
+
 # set the training tokens
-training_start = 150732800   
-training_end = 180092929 
+TRAINING_START = 180092928   
+TRAINING_END =  209453057
 
 # set the eval tokens
-eval_start = 5000000
-eval_end = 6000000
+EVAL_START = 5000000
+EVAL_END = 6000000
 
 # set the block size and padding token id
-block_size = 1024
-pad_token_id = 100278
+BLOCK_SIZE = 1024
+PAD_TOKEN_ID = 100278
 
 
 # Download the dataset and model files if needed
@@ -64,13 +67,13 @@ elif DO_DATASET_DOWNLOAD:
 
 
 # Load the training dataset and eval dataset
-tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[training_start:training_end]
+tokens = np.load(f"{LOCAL_DIR}/{TRAIN_DATA_FILENAME}", allow_pickle=True)[TRAINING_START:TRAINING_END]
 # process the input_ids(tokens) to ensure their length is divisible by block_size
-tokens = process_input_ids(tokens, block_size, pad_token_id)
+tokens = process_input_ids(tokens, BLOCK_SIZE, PAD_TOKEN_ID)
 
-eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[eval_start:eval_end]
+eval_tokens = np.load(f"{LOCAL_DIR}/{EVAL_DATA_FILENAME}", allow_pickle=True)[EVAL_START:EVAL_END]
 # process the eval_tokens to ensure their length is divisible by block_size
-eval_tokens = process_input_ids(eval_tokens, block_size, pad_token_id)
+eval_tokens = process_input_ids(eval_tokens, BLOCK_SIZE, PAD_TOKEN_ID)
 
 print(f"Dataset loaded with {len(tokens)} tokens....")
 print(f"Evaluation Dataset loaded with {len(eval_tokens)} tokens....")
