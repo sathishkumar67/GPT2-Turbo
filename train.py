@@ -40,11 +40,11 @@ MODEL_FILENAME = "40/checkpoint.pth"
 LOCAL_DIR = "/kaggle/working"
 
 # set the tokens count 
-TRAIN_TOKENS_COUNT = 29360128
+TRAIN_TOKENS_COUNT = 32505856
 
 # set the training tokens
-TRAINING_START = 356253696   
-TRAINING_END = 385613825
+TRAINING_START = 385613824   
+TRAINING_END = 418119681
 
 # set the eval tokens
 EVAL_START = 5000000
