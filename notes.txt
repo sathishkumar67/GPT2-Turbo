@@ -33,3 +33,6 @@
 # from 35th phase 
     increasing the gradient_accumulation_steps from 32 to 128
     changing tokens count from 30146560 to 29360128(which is perfectly divisible by 128)
+
+# from 42nd phase
+    changing tokens count from 29360128 to 32505856(which is perfectly divisible by 128)
