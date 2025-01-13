@@ -36,6 +36,3 @@
 
 # from 42nd phase
     changing tokens count from 29360128 to 32505856(which is perfectly divisible by 128)
-
-# from 43rd phase
-    changing tokens count from 32505856 to 34603008(which is perfectly divisible by 128)
