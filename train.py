@@ -34,7 +34,7 @@ EVAL_DATA_FILENAME = "tokens/wikipedia_512_pretraining-test_split.npy"
 # preparing the model
 MODEL_REPO_ID = "pt-sk/GPT2-Turbo"
 MODEL_REPO_TYPE = "model"
-MODEL_FILENAME = "42/checkpoint.pth"
+MODEL_FILENAME = "43/checkpoint.pth"
 
 # local directory to save the downloaded files
 LOCAL_DIR = "/kaggle/working"
@@ -43,8 +43,8 @@ LOCAL_DIR = "/kaggle/working"
 TRAIN_TOKENS_COUNT = 29360128
 
 # set the training tokens
-TRAINING_START = 452722688   
-TRAINING_END = 482082817
+TRAINING_START = 482082816   
+TRAINING_END = 511442945
 
 # set the eval tokens
 EVAL_START = 5000000
