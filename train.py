@@ -107,7 +107,7 @@ def trainer(rank, world_size):
     # prepare the training dataset
     dataset = TokenDataset(config.block_size, tokens)
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True) # Use DistributedSampler to partition data among distributed processes
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}", num_workers=1, prefetch_factor=12, persistent_workers=True) # Use DataLoader to manage batches
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, sampler=sampler, drop_last=True, pin_memory=True, pin_memory_device=f"{config.model_device.type}:{rank}") # Use DataLoader to manage batches
 
     # Initialize the model with the configuration 
     model = GPT(config)
