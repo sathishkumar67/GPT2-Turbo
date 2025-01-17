@@ -146,59 +146,61 @@ def trainer(rank, world_size):
     # Combine warmup and cosine
     scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[config.warmup_steps]) 
 
+    try:
+        # Training Loop 
+        for epoch in range(config.epochs) :  # Loop over the dataset multiple times
+            model.train()
+            sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
 
-    # Training Loop 
-    for epoch in range(config.epochs) :  # Loop over the dataset multiple times
-        model.train()
-        sampler.set_epoch(epoch)  # Shuffle data per epoch for distributed training 
-
-        loss_accum, start_time = 0.0, time.time() # Initialize accumulators
-        
-        for batch, (inputs, labels) in enumerate(dataloader):
-            gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
- 
-            # Move data to device
-            inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
-
-            # Forward pass
-            _, loss = model(inputs, labels)
+            loss_accum, start_time = 0.0, time.time() # Initialize accumulators
             
-            # scale the loss for gradient accumulation
-            loss = loss / config.gradient_accumulation_steps
+            for batch, (inputs, labels) in enumerate(dataloader):
+                gradient_accum_cond = ((batch + 1) % config.gradient_accumulation_steps == 0) or ((batch + 1) == config.steps_per_epoch)
+    
+                # Move data to device
+                inputs, labels = inputs.to(config.model_device), labels.to(config.model_device)
 
-            # Accumulate loss
-            loss_accum += loss.detach()
-            
-            with model.no_sync() if not gradient_accum_cond else torch.enable_grad():
-                # Backward pass
-                loss.backward() # Calculate gradients
-
-            if gradient_accum_cond:
-                # Gradient clipping before stepping
-                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
-
-                # Update parameters
-                optimizer.step()
-
-                # Update learning rate for the next iteration
-                scheduler.step()
+                # Forward pass
+                _, loss = model(inputs, labels)
                 
-                # Zero gradients for next iteration
-                optimizer.zero_grad()
+                # scale the loss for gradient accumulation
+                loss = loss / config.gradient_accumulation_steps
 
-                # all-reduce the metrics
-                dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
-                dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)
+                # Accumulate loss
+                loss_accum += loss.detach()
+                
+                with model.no_sync() if not gradient_accum_cond else torch.enable_grad():
+                    # Backward pass
+                    loss.backward() # Calculate gradients
 
-                # time taken for the gradient accumulation step
-                end_time = time.time() - start_time
+                if gradient_accum_cond:
+                    # Gradient clipping before stepping
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm_val)
 
-                if master_process:
-                    print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Grad Norm: {grad_norm.item()}, Time: {end_time}")
+                    # Update parameters
+                    optimizer.step()
 
-                # Reset accumulators
-                loss_accum, grad_norm, start_time = 0.0, None, time.time()
+                    # Update learning rate for the next iteration
+                    scheduler.step()
+                    
+                    # Zero gradients for next iteration
+                    optimizer.zero_grad()
 
+                    # all-reduce the metrics
+                    dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
+                    dist.all_reduce(grad_norm, op=dist.ReduceOp.AVG)
+
+                    # time taken for the gradient accumulation step
+                    end_time = time.time() - start_time
+
+                    if master_process:
+                        print(f"Epoch: {epoch}, Batch: {batch}, Loss: {loss_accum.item()}, Grad Norm: {grad_norm.item()}, Time: {end_time}")
+
+                    # Reset accumulators
+                    loss_accum, grad_norm, start_time = 0.0, None, time.time()
+
+    except Exception as e:
+        print(f"Error in training: {e}")
     try:
         # prepare the evaluation dataset  
         eval_dataset = TokenDataset(config.block_size, eval_tokens)
