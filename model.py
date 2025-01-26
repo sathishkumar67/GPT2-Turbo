@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from rope import *
+import lightning as L
 
 @gin.configurable
 @dataclass
@@ -266,3 +267,35 @@ class GPT(nn.Module):
             return x, F.cross_entropy(x.view(-1, x.size(-1)), targets.view(-1))  # (B, T, vocab_size), loss (if targets are provided)
         else: 
             return x, None  # (B, T, vocab_size), None (if targets are not provided) 
+        
+        
+class GPTWrapper(L.LightningModule):
+    def __init__(self, config: GPTConfig, model: GPT) -> None:
+        super().__init__()
+        self.config = GPT(config)
+        self.model = model
+        self.optimizer = self.configure_optimizers()
+    
+    def training_step(self, batch, batch_idx):
+        self.model.train()
+        optimizer = self.optimizers()
+        optimizer.zero_grad()
+        
+        inputs, targets = batch
+        _, loss = self.model(inputs, targets)
+        self.log("Train_Loss", loss, prog_bar=True)
+
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        self.model.eval()
+        inputs, targets = batch
+        _, loss = self.model(inputs, targets)
+        self.log("Val_Loss", loss, prog_bar=True)
+
+        return loss
+    
+    def configure_optimizers(self):
+        optimizer = self.model.configure_optimizers()
+    
+        return optimizer
