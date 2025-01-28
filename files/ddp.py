@@ -13,8 +13,6 @@ from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT
 from dataset import TokenDataset, process_input_ids
-import lightning as L
-from lightning.pytorch_lightning import Trainer
 # from tqdm import tqdm
 
 
