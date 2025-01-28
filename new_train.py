@@ -118,4 +118,4 @@ train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, drop_
 eval_dataset = TokenDataset(config.block_size, eval_tokens)
 eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, drop_last=True)
 
-trainer.fit(model=gpt_wrapper, train_dataloader=train_dataloader, val_dataloaders=eval_dataloader)
+trainer.fit(gpt_wrapper, train_dataloader, eval_dataloader)
