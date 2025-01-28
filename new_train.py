@@ -143,7 +143,6 @@ dataloader = DataLoader(dataset, batch_size=config.batch_size, drop_last=True) #
 trainer = Trainer(
     accelerator="cuda",
     strategy="ddp",
-    devices=2,
     max_epochs=config.epochs,
     accumulate_grad_batches=config.gradient_accumulation_steps,
     gradient_clip_val=config.clip_grad_norm_val,
