@@ -1,24 +1,13 @@
 from __future__ import annotations
-import os
 import gin
 import torch
-import time
 import numpy as np
-import lightning as L
-import torch.distributed
-import torch.distributed as dist
-import torch.multiprocessing as mp
-from torch.utils.data import DataLoader, DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import SequentialLR, LambdaLR, CosineAnnealingLR
 from huggingface_hub import hf_hub_download
 from model import GPTConfig, GPT, GPTWrapper
 from dataset import TokenDataset, process_input_ids
-import lightning as L
 from lightning.pytorch import Trainer
-
-
-# from tqdm import tqdm
 
 
 # checking if need to download the dataset and model files
@@ -100,53 +89,33 @@ if LOAD_CHECKPOINT:
     model.load_state_dict(checkpoint["model_state_dict"])
     print(f'Model loaded....')
 
+# change the model dtype to the config dtype
 model.to(config.dtype)
 
-
-# Define Optimizer    
-# optimizer = model.configure_optimizers() 
-# if LOAD_CHECKPOINT:
-#     # Load the optimizer state
-#     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-#     print(f'Optimizer loaded....')
-    
-# setting the total steps and warmup steps for the scheduler
-# config.steps_per_epoch = len(dataloader)
-# config.total_steps = (config.steps_per_epoch * config.epochs)//config.gradient_accumulation_steps
-# config.warmup_steps = int(config.total_steps * config.warmup_steps_ratio)
-# print(f"Total Steps: {config.total_steps}, Warmup Steps: {config.warmup_steps}")
-# print(f"Steps per Epoch: {config.steps_per_epoch}, Total Tokens: {len(tokens)}")
-
+# Initialize the GPTWrapper with the model and config
 gpt_wrapper = GPTWrapper(config=config, model=model)
+# Load the optimizer state
 gpt_wrapper.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 print(f'Optimizer loaded....')
-
-# trainer = Trainer(
-#     accelerator="cuda",
-#     strategy="ddp",
-#     devices=[0, 1],
-#     num_nodes=1,
-#     logger=False,
-#     precision="bf16-true",
-#     fast_dev_run=True,
-#     max_epochs=config.epochs,
-#     num_sanity_val_steps=-1,
-#     accumulate_grad_batches=config.gradient_accumulation_steps,
-#     gradient_clip_val=config.clip_grad_norm_val,
-#     benchmark=True,
-#     inference_mode=True,
-#     use_distributed_sampler=True
-# )
-dataset = TokenDataset(config.block_size, tokens)
-dataloader = DataLoader(dataset, batch_size=config.batch_size, drop_last=True) # Use DataLoader to manage batches
 
 trainer = Trainer(
     accelerator="cuda",
     strategy="ddp",
+    devices=2,
+    num_nodes=1,
     precision="bf16-true",
     max_epochs=config.epochs,
     accumulate_grad_batches=config.gradient_accumulation_steps,
     gradient_clip_val=config.clip_grad_norm_val,
+    benchmark=True,
+    inference_mode=True,
+    use_distributed_sampler=True
 )
 
-trainer.fit(gpt_wrapper, dataloader)
+# Prepare the dataloader for the training dataset and evaluation dataset
+train_dataset = TokenDataset(config.block_size, tokens)
+train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, drop_last=True, shuffle=True) 
+eval_dataset = TokenDataset(config.block_size, eval_tokens)
+eval_dataloader = DataLoader(eval_dataset, batch_size=config.batch_size, drop_last=True)
+
+trainer.fit(model=gpt_wrapper, train_dataloader=train_dataloader, val_dataloaders=eval_dataloader)
