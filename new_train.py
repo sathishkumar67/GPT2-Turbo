@@ -100,7 +100,7 @@ print(f'Optimizer loaded....')
 
 trainer = Trainer(
     accelerator="cuda",
-    strategy="ddp",
+    strategy="ddp_find_unused_parameters_true",
     devices=2,
     num_nodes=1,
     precision="bf16-true",
