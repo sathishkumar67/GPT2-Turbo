@@ -1,5 +1,4 @@
-/GPT2-small_finetune
-/Llama_3_base
+/.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
