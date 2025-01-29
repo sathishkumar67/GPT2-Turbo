@@ -42,3 +42,6 @@
 
 # from 44th phase
     changing tokens count to 14680064, because changing the batch size 2 due to getting out of memory error
+
+# from 45th phase
+    changing the tokens count to 29360128, checking whether it works it took 5 hours for 29360128/2 tokens in previous phase
